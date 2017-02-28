@@ -35,7 +35,9 @@ sub XiaomiSmartHome_Device_mot($$)
 
 sub XiaomiSmartHome_Device_on_timeout($){
 	my ($hash) = @_;
-	readingsSingleUpdate($hash, "state", "off", 1 );
+	if ($hash->{STATE} eq 'motion') {
+		readingsSingleUpdate($hash, "state", "off", 1 );
+		}
 }
 #####################################
 
@@ -116,6 +118,7 @@ sub XiaomiSmartHome_Device_Define($$) {
 	AssignIoPort($hash);
 
 }
+#####################################
 
 sub XiaomiSmartHome_Device_Undef($)
 {

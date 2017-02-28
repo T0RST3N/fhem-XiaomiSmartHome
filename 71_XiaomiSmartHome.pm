@@ -234,31 +234,33 @@ sub XiaomiSmartHome_disconnect($)
 1;
 
 =pod
-=item [helper|device|command]
+=item device
 =item summary Module fpr XiaomiSmartHome Gateway to use with FHEM
-=item summary_DE Modul um ein XiaomiSmartHome Gateyway in FHEM bekannt zu machen
+=item summary_DE Modul um ein XiaomiSmartHome Gateyway in FHEM zu nutzen
 
 =begin html
-<a name="xiaomismarthome"></a>
-<h3>xiaomismarthome</h3>
+
+<a name="XiaomiSmartHome"></a>
+<h3>XiaomiSmartHome</h3>
 <ul>
     <i>XiaomiSmartHome</i> implements the XiaomiSmartHome Gateway and Sensors. 
     <a name="XiaomiSmartHome"></a>
+	<br>
     <b>Define</b>
     <ul>
         <code>define &lt;name&gt; XiaomiSmartHome &lt;IP or Hostname&gt;</code>
         <br><br>
         Example: <code>define XiaomiSmartHome XiaomiSmartHome 192.168.1.xxx</code>
         <br><br>
-
     </ul>
     <br>
 </ul>
 =end html
 
 =begin html_DE
-<a name="xiaomismarthome"></a>
-<h3>xiaomismarthome</h3>
+
+<a name="XiaomiSmartHome"></a>
+<h3>XiaomiSmartHome</h3>
 <ul>
     <i>XiaomiSmartHome</i> implements the XiaomiSmartHome Gateway and Sensors. 
     <a name="XiaomiSmartHome"></a>
