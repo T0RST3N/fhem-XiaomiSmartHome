@@ -65,12 +65,12 @@ sub XiaomiSmartHome_Device_Parse($$) {
 			}
 		elsif($status[1] eq 'temperature'){
 			Log3 $name, 3, "$name:  Sensor: " . $hash->{MODEL} . " SID: " . $sid . " Temperature: " . $status[3];
-			readingsSingleUpdate($hash, "temperature", "$status[3]", 1 );
 			$status[3] =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
-			readingsSingleUpdate($hash, "temperatureP", "$status[3]", 1 );
+			readingsSingleUpdate($hash, "temperature", "$status[3]", 1 );
 			}
 		elsif($status[1] eq 'humidity'){
 			Log3 $name, 3, "$name:  Sensor: " . $hash->{MODEL} . " SID: " . $sid . " Humidity: " . $status[3];
+			$status[3] =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
 			readingsSingleUpdate($hash, "humidity", "$status[3]", 1 );
 			}
 		XiaomiSmartHome_Device_update($hash);
