@@ -202,11 +202,10 @@ sub XiaomiSmartHome_Device_Undef($)
 {
 	my ($hash, $arg) = @_; 
 	my $name = $hash->{NAME};
+	my $iodev = $hash->{IODev}->{NAME};
 	RemoveInternalTimer($hash);
-    my $code = $hash->{IODev}->{NAME} if( defined($hash->{IODev}->{NAME}) );
-    delete($modules{XiaomiSmartHome_Device}{defptr}{$code});
-    
-    Log3 $name, 3, "$code> $name - device deleted";
+	delete($modules{XiaomiSmartHome_Device}{defptr}{$hash->{SID}});
+    Log3 $name, 3, "$iodev> $name - device deleted";
     return undef;
 
 }
