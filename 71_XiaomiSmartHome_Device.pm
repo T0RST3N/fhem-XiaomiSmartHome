@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.02";
+my $version = "0.05";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 #####################################
@@ -73,24 +73,34 @@ sub XiaomiSmartHome_Device_Read($$$){
 	my $sid = $decoded->{'sid'};
 	my $model = $decoded->{'model'};
 	Log3 $name, 5, "$name: SID: " . $hash->{SID} . " " . $hash->{TYPE};
-	my @status = split('\"', $decoded->{'data'});
-	if ($status[1] eq 'status'){
-		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $status[3];
-		readingsSingleUpdate($hash, "state", "$status[3]", 1 );
+	my $data = decode_json($decoded->{data});
+	#my @status = split('\"', $decoded->{'data'});
+	if (defined $data->{status}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
+		readingsSingleUpdate($hash, "state", "$data->{status}", 1 );
+		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'){
+			readingsSingleUpdate($hash, "no_motion", "0", 1 );
+			}
 		}
-	elsif($status[1] eq 'voltage'){
-		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $status[3];
-		readingsSingleUpdate($hash, "voltage", "$status[3]", 1 );
+	elsif(defined $data->{no_motion}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
+		readingsSingleUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
 		}
-	elsif($status[1] eq 'temperature'){
-		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $status[3];
-		$status[3] =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
-		readingsSingleUpdate($hash, "temperature", "$status[3]", 1 );
+	elsif(defined $data->{voltage}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
+		readingsSingleUpdate($hash, "voltage", "$data->{voltage}", 1 );
 		}
-	elsif($status[1] eq 'humidity'){
-		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $status[3];
-		$status[3] =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
-		readingsSingleUpdate($hash, "humidity", "$status[3]", 1 );
+	elsif(defined $data->{temperature}){
+		my $temp = $data->{temperature};
+		$temp =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp;
+		readingsSingleUpdate($hash, "temperature", "$temp", 1 );
+		}
+	elsif(defined $data->{humidity}){
+		my $hum = $data->{humidity};
+		$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
+		readingsSingleUpdate($hash, "humidity", "$hum", 1 );
 		}
 	elsif ($decoded->{'cmd'} eq 'heartbeat'){
 		readingsSingleUpdate($hash, $decoded->{'sid'}, 'heartbeat', 1 );
@@ -170,10 +180,10 @@ sub XiaomiSmartHome_Device_Define($$) {
     
     return "XiaomiSmartHome device $hash->{SID} on XiaomiSmartHome $iodev already defined as $d->{NAME}." if( defined($d) && $d->{IODev} == $hash->{IODev} && $d->{NAME} ne $name );
 
-    Log3 $name, 3, $iodev . "> " . $name . "- defined with Code: ". $hash->{DEV};
+    Log3 $name, 3, $iodev . "> " . $name . ": defined as ". $hash->{MODEL};
     $attr{$name}{room} = "MiSmartHome" if( !defined( $attr{$name}{room} ) );
     if( $type eq 'motion') {
-		$attr{$name}{devStateIcon}  = 'motion:motion_detector@red off:motion_detector@green' if( !defined( $attr{$name}{devStateIcon} ) );
+		$attr{$name}{devStateIcon}  = 'motion:motion_detector@red off:motion_detector@green no_motion:motion_detector@green' if( !defined( $attr{$name}{devStateIcon} ) );
 	}
 	elsif ( $type eq 'magnet') {
 		$attr{$name}{devStateIcon}  = 'open:fts_door_open@red close:fts_door@green' if( !defined( $attr{$name}{devStateIcon} ) );

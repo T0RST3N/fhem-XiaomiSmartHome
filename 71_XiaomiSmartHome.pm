@@ -25,19 +25,29 @@ package main;
 
 use strict;
 use warnings;
-use strict;
 use JSON qw( decode_json );
 use Data::Dumper;
 use IO::Socket;
 use IO::Socket::Multicast;
+use Crypt::CBC;
+use Color;
+use SetExtensions;
 
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
-
-my $version = "0.02";
+my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
+my $version = "0.05";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
+);
+
+my %sets = (
+  "password"            => 1,
+  "rgb:colorpicker,RGB" => 1,
+  #"pct:colorpicker,BRI,0,300,1300" =>1,
+  "off"                 => 0,
+  "on"                  => 0,
 );
 
 
@@ -56,12 +66,14 @@ sub XiaomiSmartHome_Initialize($) {
     $hash->{ReadFn}     = 'XiaomiSmartHome_Read';
     $hash->{WriteFn}    = "XiaomiSmartHome_Write";
 	$hash->{AttrList}	= "disable:1,0 " .
-						  "Room "  .	
+						  "Room "  .	  
 						  $readingFnAttributes;
+	
 	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"      => "^.+magnet",
 						"2:XiaomiSmartHome_Device"      => "^.+motion",
 						"3:XiaomiSmartHome_Device"      => "^.+sensor_ht",
 						"4:XiaomiSmartHome_Device"      => "^.+switch"};
+	FHEM_colorpickerInit();
 }					
 #####################################
 
@@ -85,14 +97,14 @@ sub XiaomiSmartHome_Read($) {
         Log3 $name, 5, "$name> Read:" .  $buf;
 		if ($decoded->{'model'} eq 'gateway'){
 			if ($decoded->{'cmd'} eq 'report'){
-				my @status = split('\"', $decoded->{'data'});
-				if ($status[1] eq 'rgb'){
-					Log3 $name, 4, "$name>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . ($status[2] =~ /([\d]+)/)[0] ;
-					readingsSingleUpdate($hash, "RGB", ($status[2] =~ /([\d]+)/)[0] , 1 );
+				my $data = decode_json($decoded->{data});
+				if (defined $data->{rgb}){
+					Log3 $name, 4, "$name>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
+					readingsSingleUpdate($hash, "RGB", $data->{rgb} , 1 );
 					}
 			}
 			elsif ($decoded->{'cmd'} eq 'heartbeat'){
-				readingsSingleUpdate($hash, $decoded->{'sid'}, 'heartbeat', 1 );
+				readingsSingleUpdate($hash, 'HEARTBEAT', $decoded->{'sid'}, 1 );
 				readingsSingleUpdate($hash, 'token', $decoded->{'token'}, 1 );
 			}
 		}
@@ -137,7 +149,10 @@ sub XiaomiSmartHome_Define($$) {
     $hash->{helper}{host} = $definition;
     $hash->{helper}{JSON} = JSON->new->utf8();
 	Log3 $hash->{NAME}, 5, "$hash->{NAME}> $definition";
-
+	$attr{$hash->{NAME}}{webCmd} = "rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off";
+	# Define devStateIcon
+	$attr{$hash->{NAME}}{devStateIcon} = '{Color_devStateIcon(ReadingsVal($name,"rgb","000000"))}' if(!defined($attr{$hash->{NAME}}{devStateIcon}));
+	$attr{$hash->{NAME}}{room} = "MiSmartHome" if( !defined( $attr{$hash->{NAME}}{room} ) );
 	XiaomiSmartHome_connect($hash) if( $init_done);
 	
     return undef;
@@ -153,14 +168,31 @@ sub XiaomiSmartHome_Undef($$) {
 }
 #####################################
 
-sub XiaomiSmartHome_Write($$)
+sub XiaomiSmartHome_Write($$$)
 {
-	my ($hash,$cmd,$sid)  = @_;
-    my $name                    = $hash->{NAME};
-    my $msg  = '{"cmd":"' .$cmd . '","sid":"' . $sid . '"}';
+	my ($hash,$cmd,$val)  = @_;
+    my $name = $hash->{NAME};
+	my $msg;
+    if ($cmd eq 'read')
+		{
+		$msg  = '{"cmd":"' .$cmd . '","sid":"' . $val . '"}';
+		}
+	elsif ($cmd eq 'rgb')
+		{
+		# TODO SID des Gateway nicht im und aus dem Reading!!
+		$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				
+		}
+	elsif ($cmd eq 'illumination')
+		{
+		# TODO SID des Gateway nicht im und aus dem Reading!!
+		#$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"illumination\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+		$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"mid\":\"3\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+		#$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"hue\":\"170\",\"saturation\":\"254\", \"color_temperature\":\"65279\", \"x\":\"10\", \"y\":\"10\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 
-    return Log3 $name, 4, "Master ($name) - socket not connected"
-    unless($hash->{CD});
+			
+		}
+	return Log3 $name, 4, "Master ($name) - socket not connected" unless($hash->{CD});
     
     Log3 $name, 4, "$name> $msg " . $hash->{GATEYWAY};
 	my $sock = $hash->{CD};
@@ -169,14 +201,26 @@ sub XiaomiSmartHome_Write($$)
     
     return undef;
 }
-
 #####################################
 
+sub XiaomiSmartHome_EncryptKey($)
+{
+	my ($hash) = @_;
+	if (defined $hash->{READINGS}{password}{VAL}){
+		my $key = $hash->{READINGS}{password}{VAL};
+		my $cipher = Crypt::CBC->new(-key => $key, -cipher => 'Cipher::AES',-iv => $iv, -literal_key => 1, -header => "none", -keysize => 16 );  
+		my $encryptkey = $cipher->encrypt_hex($hash->{READINGS}{token}{VAL});
+		$encryptkey = substr($encryptkey, 0, 32);	
+		return $encryptkey;
+		}
+	return undef;
+}
+#####################################
 
 sub XiaomiSmartHome_Get($@)
 {
 	my ($hash , $name, $opt, $args ) = @_;
-	my $name = $hash->{NAME};
+	
 	if ($opt eq "UpdateAll")
 		{
 		XiaomiSmartHome_updateAllReadings($hash);
@@ -211,10 +255,79 @@ sub XiaomiSmartHome_Notify($$)
 }
 #####################################
 
-sub XiaomiSmartHome_Set($@) {
+sub XiaomiSmartHome_Set($@) 
+	{
+	my ( $hash, $name, $cmd, @args ) = @_;
+	my $dec_num;
+	my @match = grep( $_ =~ /^$cmd($|:)/, keys %sets );
+	#-- check argument
+	return SetExtensions($hash, join(" ", keys %sets), $name, $cmd, @args) unless @match == 1;
+	return "$cmd expects $sets{$match[0]} parameters" unless (@args eq $sets{$match[0]});
+		
+	return "\"set $name\" needs at least one argument" unless(defined($cmd));
 
+		
+	if($cmd eq "password")
+	{
+	   if($args[0] =~ /^[a-zA-Z0-9_.-]*$/)
+	   {
+			readingsSingleUpdate( $hash, $cmd, $args[0], 0 );
+			return;
+	   }
+	   else
+	   {
+	      return "Unknown value $args[0] for $cmd, wrong password, it must be hex";
+	   }   
+	}
+	elsif($cmd eq "rgb")
+	{
+		my $ownName = $hash->{NAME};
+		Log3 $ownName, 4, "$ownName> Set $cmd, $args[0]";
+		$dec_num = sprintf("%d", hex('ff' . $args[0]));
+		Log3 $ownName, 4, "$ownName> Set $cmd, $dec_num";
+		readingsSingleUpdate( $hash, 'rgb', $args[0], 1 );
+		readingsSingleUpdate( $hash, 'state', 'on', 1 );
+		XiaomiSmartHome_Write($hash,$cmd,$dec_num);
+	}
+	elsif($cmd eq "off")
+	{
+		$hash->{helper}{prevrgbvalue} = $hash->{READINGS}{rgb}{VAL};
+		readingsSingleUpdate( $hash, 'state', 'off', 1 );
+		readingsSingleUpdate( $hash, 'rgb', 'off', 1 );
+		XiaomiSmartHome_Write($hash,'rgb', 0);
+	}
+	elsif($cmd eq "on")
+	{
+		readingsSingleUpdate( $hash, 'state', 'on', 1 );
+		if ($hash->{helper}{prevrgbvalue})
+			{
+			$dec_num = sprintf("%d", hex('ff' . $hash->{helper}{prevrgbvalue}));
+			readingsSingleUpdate( $hash, 'rgb', $hash->{helper}{prevrgbvalue}, 1 );
+			XiaomiSmartHome_Write($hash,'rgb', $dec_num);
+			}
+		else 
+			{
+			XiaomiSmartHome_Write($hash,'rgb', 1677786880);
+			readingsSingleUpdate( $hash, 'rgb', '00ff00', 1 );
+			}
+	}
+	elsif($cmd eq "pct")
+	{
+		my $ownName = $hash->{NAME};
+		Log3 $ownName, 4, "$ownName> Set $cmd, $args[0]";
+		XiaomiSmartHome_Write($hash,'illumination',$args[0]);
+	}
+	
+	else
+	{
+		return "Unknown argument! $cmd, $args[0], choose one of password rgb";
+	}
 }
 #####################################
+
+
+#####################################
+
 
 sub XiaomiSmartHome_Attr(@) {
 
@@ -295,7 +408,7 @@ sub XiaomiSmartHome_updateSingleReading($$)
 	my $MAXLEN  = 1024;
 	
 	Log3 $name, 4, "$name> PushSingelRead:" .  $sensor;
-	XiaomiSmartHome_Write($hash, $sensor);
+	XiaomiSmartHome_Write($hash, 'read', $sensor);
 	
 }
 #####################################
@@ -318,8 +431,7 @@ sub XiaomiSmartHome_updateAllReadings($)
 		if ($json){
 			Log3 $name, 5, "$name> Read:" .  $msg;
 			if ($decoded->{'cmd'} eq 'get_id_list_ack'){
-				my @sensors = split('\"', $decoded->{'data'});
-				@sensors = grep {$_ ne ',' and $_ ne ']' and $_ ne '[' } @sensors;
+				my @sensors = @{decode_json($decoded->{data})};
 				foreach my $sensor (@sensors)	
 				{
 					$msg = '{"cmd":"read","sid":"' . $sensor . '" }';
