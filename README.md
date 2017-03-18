@@ -1,6 +1,6 @@
 # fhem-XiaomiSmartHome Gateway
-Mit diesem Modul wird das XiaomiGateway an Fhem gebunden. Das Modul lauscht auf Multicast Meldungen des Gateways.
-Zur Zeit nur lesend für die Sensoren vom Typ Magnet, Motion, Temperatur-Luftfeuchte.
+With this module, the XiaomiGateway is bound to Fhem. The module listens for multicast messages from the gateway. Currently only  for the sensortype Magnet, Motion, Temperature-Humidity, Switch. 
+Changing and switching the led of the gateway is now also possible.
 
 * Please read the Wiki !! you need to install some Perl modules.
 
