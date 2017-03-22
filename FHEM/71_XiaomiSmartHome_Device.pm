@@ -120,16 +120,16 @@ sub XiaomiSmartHome_Device_Parse($$) {
 	my $model = $decoded->{'model'};
 	my $name = $io_hash->{NAME};
 	
-	if (my $hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid})
+	if (my $io_hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid})
 	{
 		Log3 $name, 4, "$name>  IS DEFINED " . $model . " : " .$sid;
-		XiaomiSmartHome_Device_Read($hash, $msg, $name);
+		XiaomiSmartHome_Device_Read($io_hash, $msg, $name);
 	}
 	else
 	{
 
 		Log3 $name, 4, "$name> UNDEFINED " . $model . " : " .$sid;
-		return "UNDEFINED $sid XiaomiSmartHome_Device $model $name";
+		return "UNDEFINED XMI_$sid XiaomiSmartHome_Device $sid $model $name";
 	}
 }
 #####################################
@@ -157,15 +157,15 @@ sub XiaomiSmartHome_Device_update($){
 
 sub XiaomiSmartHome_Device_Define($$) {
 	my ($hash, $def) = @_;
-	my ($name, $modul, $type, $iodev) = split("[ \t]+", $def);
+	my ($name, $modul, $sid, $type, $iodev) = split("[ \t]+", $def);
 	#Log3 "test", 3, "Define status = " . $status;
   	$hash->{TYPE} = $modul;
 	$hash->{MODEL} = $type;
-	$hash->{SID} = $name;
+	$hash->{SID} = $sid;
 	$hash->{NAME} = $name;
 	$hash->{VERSION}  = $version;
 	$hash->{STATE} = 'initialized';
-	$modules{XiaomiSmartHome_Device}{defptr}{$name} = $hash;
+	$modules{XiaomiSmartHome_Device}{defptr}{$sid} = $hash;
 	AssignIoPort($hash,$iodev);
 	
 	if(defined($hash->{IODev}->{NAME})) {

@@ -490,9 +490,13 @@ sub XiaomiSmartHome_updateAllReadings($)
         <br><br>
         Example: <code>define XiaomiSmartHome XiaomiSmartHome 192.168.1.xxx</code>
         <br><br>
-
     </ul>
     <br>
+	<b>Prerequisite</b>
+	<ul>
+		<li>Installation of the following packages: apt-get install libio-socket-multicast-perl libjson-perl libcrypt-cbc-perl</li>
+		<li>And with CPAN: cpan Crypt::Cipher::AES</li>
+	</ul>
 </ul>
 =end html
 
