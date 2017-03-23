@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.05";
+my $version = "0.06";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 #####################################
@@ -82,28 +82,28 @@ sub XiaomiSmartHome_Device_Read($$$){
 			readingsSingleUpdate($hash, "no_motion", "0", 1 );
 			}
 		}
-	elsif(defined $data->{no_motion}){
+	if(defined $data->{no_motion}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
 		readingsSingleUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
 		}
-	elsif(defined $data->{voltage}){
+	if(defined $data->{voltage}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
 		readingsSingleUpdate($hash, "voltage", "$data->{voltage}", 1 );
 		}
-	elsif(defined $data->{temperature}){
+	if(defined $data->{temperature}){
 		my $temp = $data->{temperature};
 		$temp =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp;
 		readingsSingleUpdate($hash, "temperature", "$temp", 1 );
 		}
-	elsif(defined $data->{humidity}){
+	if(defined $data->{humidity}){
 		my $hum = $data->{humidity};
 		$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
 		readingsSingleUpdate($hash, "humidity", "$hum", 1 );
 		}
-	elsif ($decoded->{'cmd'} eq 'heartbeat'){
-		readingsSingleUpdate($hash, $decoded->{'sid'}, 'heartbeat', 1 );
+	if ($decoded->{'cmd'} eq 'heartbeat'){
+		readingsSingleUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
 		}
 	XiaomiSmartHome_Device_update($hash);
 	return $hash->{NAME};
