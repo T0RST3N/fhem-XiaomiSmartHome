@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.06";
+my $version = "0.07";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 #####################################
@@ -80,11 +80,18 @@ sub XiaomiSmartHome_Device_Read($$$){
 		readingsSingleUpdate($hash, "state", "$data->{status}", 1 );
 		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'){
 			readingsSingleUpdate($hash, "no_motion", "0", 1 );
+			}		
+		if ($data->{status} eq 'close' && $hash->{MODEL} eq 'magnet'){
+			readingsSingleUpdate($hash, "no_close", "0", 1 );
 			}
 		}
 	if(defined $data->{no_motion}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
 		readingsSingleUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
+		}
+	if(defined $data->{no_close}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_close: " . $data->{no_close};
+		readingsSingleUpdate($hash, "no_close", "$data->{no_close}", 1 );
 		}
 	if(defined $data->{voltage}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
