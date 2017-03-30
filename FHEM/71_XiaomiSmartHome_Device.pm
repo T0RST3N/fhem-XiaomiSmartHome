@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.07";
+my $version = "0.08";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 #####################################
@@ -34,7 +34,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
   
-  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch";
+  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   #$hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -108,6 +108,18 @@ sub XiaomiSmartHome_Device_Read($$$){
 		$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
 		readingsSingleUpdate($hash, "humidity", "$hum", 1 );
+		}
+	if(defined $data->{load_voltage}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Voltage: " . $data->{load_voltage};
+		readingsSingleUpdate($hash, "LOAD_Voltage", "$data->{load_voltage}", 1 );
+		}
+	if(defined $data->{load_power}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Power: " . $data->{load_power};
+		readingsSingleUpdate($hash, "LOAD_Power", "$data->{load_power}", 1 );
+		}
+	if(defined $data->{power_consumed}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " POWER_Consumed: " . $data->{power_consumed};
+		readingsSingleUpdate($hash, "LOAD_Power", "$data->{power_consumed}", 1 );
 		}
 	if ($decoded->{'cmd'} eq 'heartbeat'){
 		readingsSingleUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
