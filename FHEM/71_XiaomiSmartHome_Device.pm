@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.09";
+my $version = "0.10";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 #####################################
@@ -257,6 +257,7 @@ sub XiaomiSmartHome_Device_Define($$) {
 		InternalTimer( gettimeofday()+int(rand(2)), "XiaomiSmartHome_Device_updateSReading", $hash, 0 );
 		Log3 $name, 4, $iodev . "> " . $name . " Init Done set InternalTimer for Update";
 	}
+	return undef;
 }
 #####################################
 sub XiaomiSmartHome_Device_updateSReading($) {
@@ -264,6 +265,7 @@ sub XiaomiSmartHome_Device_updateSReading($) {
     my $hash        = shift;
 	#my $name = $hash->{NAME};
 	#Log3 $name, 3, $name . " Updae SR";
+	RemoveInternalTimer($hash,'XiaomiSmartHome_Device_updateSReading');
     IOWrite($hash,'read',"$hash->{SID}");
 }
 #####################################

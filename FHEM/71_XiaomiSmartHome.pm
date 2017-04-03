@@ -36,7 +36,7 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "0.09";
+my $version = "0.10";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
