@@ -36,7 +36,7 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "0.08";
+my $version = "0.09";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -73,7 +73,8 @@ sub XiaomiSmartHome_Initialize($) {
 						"2:XiaomiSmartHome_Device"      => "^.+motion",
 						"3:XiaomiSmartHome_Device"      => "^.+sensor_ht",
 						"4:XiaomiSmartHome_Device"      => "^.+switch",
-						"5:XiaomiSmartHome_Device"      => "^.+plug"};
+						"5:XiaomiSmartHome_Device"      => "^.+cube",						
+						"6:XiaomiSmartHome_Device"      => "^.+plug"};
 	FHEM_colorpickerInit();
 }					
 #####################################
@@ -96,23 +97,25 @@ sub XiaomiSmartHome_Read($) {
     if ($json)
     {
         Log3 $name, 5, "$name> Read:" .  $buf;
+		readingsBeginUpdate( $hash );
 		if ($decoded->{'model'} eq 'gateway'){
 			if ($decoded->{'cmd'} eq 'report'){
 				my $data = decode_json($decoded->{data});
 				if (defined $data->{rgb}){
 					Log3 $name, 4, "$name>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
-					readingsSingleUpdate($hash, "RGB", $data->{rgb} , 1 );
+					readingsBulkUpdate($hash, "RGB", $data->{rgb} , 1 );
 					}
 			}
 			elsif ($decoded->{'cmd'} eq 'heartbeat'){
-				readingsSingleUpdate($hash, 'HEARTBEAT', $decoded->{'sid'}, 1 );
-				readingsSingleUpdate($hash, 'token', $decoded->{'token'}, 1 );
+				readingsBulkUpdate($hash, 'HEARTBEAT', $decoded->{'sid'}, 1 );
+				readingsBulkUpdate($hash, 'token', $decoded->{'token'}, 1 );
 			}
 		}
 		else {
 			Log3 $name, 4, "$name> Dispatch! " . $buf;
 			Dispatch($hash, $buf, undef);
 		}
+		readingsEndUpdate( $hash, 1 );
     }
 }
 #####################################
@@ -169,29 +172,31 @@ sub XiaomiSmartHome_Undef($$) {
 }
 #####################################
 
-sub XiaomiSmartHome_Write($$$)
+sub XiaomiSmartHome_Write($@)
 {
-	my ($hash,$cmd,$val)  = @_;
+	my ($hash,$cmd,$val,$iohash)  = @_;
     my $name = $hash->{NAME};
 	my $msg;
     if ($cmd eq 'read')
 		{
 		$msg  = '{"cmd":"' .$cmd . '","sid":"' . $val . '"}';
 		}
-	elsif ($cmd eq 'rgb')
+	if ($cmd eq 'rgb')
 		{
 		# TODO SID des Gateway nicht im und aus dem Reading!!
 		$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 				
 		}
-	elsif ($cmd eq 'illumination')
+	if ($cmd eq 'illumination')
 		{
 		# TODO SID des Gateway nicht im und aus dem Reading!!
 		#$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"illumination\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 		$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"mid\":\"3\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-		#$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"hue\":\"170\",\"saturation\":\"254\", \"color_temperature\":\"65279\", \"x\":\"10\", \"y\":\"10\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-
-			
+		#$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{READINGS}{HEARTBEAT}{VAL} . '","short_id":0,"key":"8","data":"{\"hue\":\"170\",\"saturation\":\"254\", \"color_temperature\":\"65279\", \"x\":\"10\", \"y\":\"10\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';		
+		}
+	if ($cmd eq 'power')
+		{
+		$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 		}
 	return Log3 $name, 4, "Master ($name) - socket not connected" unless($hash->{CD});
     
@@ -294,23 +299,25 @@ sub XiaomiSmartHome_Set($@)
 	{
 		$hash->{helper}{prevrgbvalue} = $hash->{READINGS}{rgb}{VAL};
 		readingsSingleUpdate( $hash, 'state', 'off', 1 );
-		readingsSingleUpdate( $hash, 'rgb', 'off', 1 );
+		readingsSingleUpdate( $hash, 'rgb', 'off', 0 );
 		XiaomiSmartHome_Write($hash,'rgb', 0);
 	}
 	elsif($cmd eq "on")
 	{
-		readingsSingleUpdate( $hash, 'state', 'on', 1 );
+		readingsBeginUpdate( $hash );
+		readingsBulkUpdate( $hash, 'state', 'on', 1 );
 		if ($hash->{helper}{prevrgbvalue})
 			{
 			$dec_num = sprintf("%d", hex('ff' . $hash->{helper}{prevrgbvalue}));
-			readingsSingleUpdate( $hash, 'rgb', $hash->{helper}{prevrgbvalue}, 1 );
+			readingsBulkUpdate( $hash, 'rgb', $hash->{helper}{prevrgbvalue}, 1 );
 			XiaomiSmartHome_Write($hash,'rgb', $dec_num);
 			}
 		else 
 			{
+			readingsBulkUpdate( $hash, 'rgb', "00ff00", 1 );
 			XiaomiSmartHome_Write($hash,'rgb', 1677786880);
-			readingsSingleUpdate( $hash, 'rgb', '00ff00', 1 );
 			}
+		readingsEndUpdate( $hash, 1 );
 	}
 	elsif($cmd eq "pct")
 	{

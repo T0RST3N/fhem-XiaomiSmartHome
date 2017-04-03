@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.08";
+my $version = "0.09";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 #####################################
@@ -34,9 +34,9 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
   
-  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug";
+  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
-  #$hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
+  $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
   $hash->{ParseFn}   = "XiaomiSmartHome_Device_Parse";
 
@@ -57,6 +57,35 @@ sub XiaomiSmartHome_Device_mot($$)
 }
 #####################################
 
+sub XiaomiSmartHome_Device_Set($@)
+{
+	my ( $hash, $name, $cmd, @args ) = @_;
+
+	return "\"set $name\" needs at least one argument" unless(defined($cmd));
+	
+	my $setlist = "";
+	$setlist .= "power:on,off " if ($hash->{MODEL} eq 'plug');
+	
+	if($cmd eq "power")
+	{
+	   if($args[0] eq "on")
+	   {
+			IOWrite($hash,"power","on",$hash);
+	   }
+	   elsif($args[0] eq "off")
+	   {
+			IOWrite($hash,"power","off",$hash);
+	   }
+	}
+	else
+	{
+		return "Unknown argument $cmd, choose one of $setlist";
+	}
+}
+
+
+#####################################
+
 sub XiaomiSmartHome_Device_on_timeout($){
 	my ($hash) = @_;
 	my $name = $hash->{LASTInputDev};
@@ -74,56 +103,69 @@ sub XiaomiSmartHome_Device_Read($$$){
 	my $model = $decoded->{'model'};
 	Log3 $name, 5, "$name: SID: " . $hash->{SID} . " " . $hash->{TYPE};
 	my $data = decode_json($decoded->{data});
-	#my @status = split('\"', $decoded->{'data'});
+	readingsBeginUpdate( $hash );
 	if (defined $data->{status}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
-		readingsSingleUpdate($hash, "state", "$data->{status}", 1 );
+		readingsBulkUpdate($hash, "state", "$data->{status}", 1 );
 		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'){
-			readingsSingleUpdate($hash, "no_motion", "0", 1 );
+			readingsBulkUpdate($hash, "no_motion", "0", 1 );
 			}		
 		if ($data->{status} eq 'close' && $hash->{MODEL} eq 'magnet'){
-			readingsSingleUpdate($hash, "no_close", "0", 1 );
+			readingsBulkUpdate($hash, "no_close", "0", 1 );
 			}
-		}
 	if(defined $data->{no_motion}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
-		readingsSingleUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
+		readingsBulkUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
 		}
 	if(defined $data->{no_close}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_close: " . $data->{no_close};
-		readingsSingleUpdate($hash, "no_close", "$data->{no_close}", 1 );
+		readingsBulkUpdate($hash, "no_close", "$data->{no_close}", 1 );
 		}
 	if(defined $data->{voltage}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
-		readingsSingleUpdate($hash, "voltage", "$data->{voltage}", 1 );
+		readingsBulkUpdate($hash, "voltage", "$data->{voltage}", 1 );
 		}
 	if(defined $data->{temperature}){
 		my $temp = $data->{temperature};
 		$temp =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp;
-		readingsSingleUpdate($hash, "temperature", "$temp", 1 );
+		readingsBulkUpdate($hash, "temperature", "$temp", 1 );
 		}
 	if(defined $data->{humidity}){
 		my $hum = $data->{humidity};
 		$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
-		readingsSingleUpdate($hash, "humidity", "$hum", 1 );
+		readingsBulkUpdate($hash, "humidity", "$hum", 1 );
 		}
+	#plug start
 	if(defined $data->{load_voltage}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Voltage: " . $data->{load_voltage};
-		readingsSingleUpdate($hash, "LOAD_Voltage", "$data->{load_voltage}", 1 );
+		readingsBulkUpdate($hash, "LOAD_Voltage", "$data->{load_voltage}", 1 );
 		}
 	if(defined $data->{load_power}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Power: " . $data->{load_power};
-		readingsSingleUpdate($hash, "LOAD_Power", "$data->{load_power}", 1 );
+		readingsBulkUpdate($hash, "LOAD_Power", "$data->{load_power}", 1 );
 		}
 	if(defined $data->{power_consumed}){
 		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " POWER_Consumed: " . $data->{power_consumed};
-		readingsSingleUpdate($hash, "LOAD_Power", "$data->{power_consumed}", 1 );
+		readingsBulkUpdate($hash, "POWER_Consumed", "$data->{power_consumed}", 1 );
 		}
+	if(defined $data->{inuse}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " InUse: " . $data->{inuse};
+		readingsBulkUpdate($hash, "inuse", "$data->{inuse}", 1 );
+		}
+	#plug end
+	#cube start
+	if(defined $data->{rotate}){
+		Log3 $name, 3, "$name>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Rotate: " . $data->{rotate};
+		readingsBulkUpdate($hash, "rotate", "$data->{rotate}", 1 );
+		}
+	#cube end	
+	}
 	if ($decoded->{'cmd'} eq 'heartbeat'){
-		readingsSingleUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
+		readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
 		}
+	readingsEndUpdate( $hash, 1 );
 	XiaomiSmartHome_Device_update($hash);
 	return $hash->{NAME};
 
