@@ -4,6 +4,3 @@ Changing and switching the led of the gateway is now also possible.
 
 * Please read the Wiki !! you need to install some Perl modules.
 * https://github.com/T0RST3N/fhem-XiaomiSmartHome/wiki
-
-# Update FHEM Modules
-* update all https://raw.githubusercontent.com/T0RST3N/fhem-XiaomiSmartHome/master/controls_mish.txt
