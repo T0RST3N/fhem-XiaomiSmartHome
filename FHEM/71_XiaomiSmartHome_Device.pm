@@ -42,8 +42,8 @@ sub XiaomiSmartHome_Device_Initialize($)
   $hash->{ParseFn}   = "XiaomiSmartHome_Device_Parse";
 
   $hash->{AttrList}  = "IODev follow-on-for-timer:1,0 follow-on-timer ".
-                       "do_not_notify:1,0 ignore:1,0 dummy:1,0 showtime:1,0 valueFn:textField-long".
-                       $readingFnAttributes ;
+                       "do_not_notify:1,0 ignore:1,0 dummy:1,0 showtime:1,0 valueFn:textField-long ".
+                       $readingFnAttributes ;				
 }
 #####################################
 
