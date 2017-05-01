@@ -50,7 +50,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 sub XiaomiSmartHome_updateAllReadings($);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "0.18";
+my $version = "0.20";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -117,12 +117,13 @@ sub XiaomiSmartHome_Read($) {
     {
         Log3 $name, 5, "$name: Read> " .  $buf;
 		readingsBeginUpdate( $hash ); 
-		if ($decoded->{'cmd'} eq 'read_ack' || $decoded->{'cmd'} eq 'report' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'write_ack'){
+		if ($decoded->{'cmd'} eq 'report' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'write_ack'){
+			readingsBeginUpdate( $hash );
 			if ($decoded->{'model'} && $decoded->{'model'} eq 'gateway' ){
 				if ($decoded->{'cmd'} eq 'report'){
 					my $data = decode_json($decoded->{data});
 					if (defined $data->{rgb}){
-						Log3 $name, 4, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
+						Log3 $name, 3, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
 						readingsBulkUpdate($hash, "RGB", $data->{rgb} , 1 );
 						}
 				}
@@ -147,12 +148,23 @@ sub XiaomiSmartHome_Read($) {
 					readingsBulkUpdate($hash, 'heartbeat', "Write_OK", 1 );	
 				}
 			}
+			readingsEndUpdate( $hash, 1 );
+			return;
 		}
-		else {
-			Log3 $name, 4, "$name: Read> dispatch " . $buf;
-			Dispatch($hash, $buf, undef);
-			}
-		readingsEndUpdate( $hash, 1 );
+		if ($decoded->{'cmd'} eq 'get_id_list_ack'){
+			my @sensors = @{decode_json($decoded->{data})};
+			foreach my $sensor (@sensors)	
+				{
+				Log3 $name, 4, "$name: Read> PushRead:" . $sensor;
+				XiaomiSmartHome_Write($hash, 'read',  $sensor );
+				}
+			return;
+		}
+
+		Log3 $name, 4, "$name: Read> dispatch " . $buf;
+		Dispatch($hash, $buf, undef);
+			
+
     }
 }
 #####################################
@@ -199,10 +211,8 @@ sub XiaomiSmartHome_getGatewaySID($){
     {
 		if ($decoded->{'sid'} ne '')
 		{
-			Log3 $name, 3, "$name: Find SID for Gateway: $decoded->{'sid'}";
+			Log3 $name, 4, "$name: Find SID for Gateway: $decoded->{'sid'}";
 			return $decoded->{'sid'};
-			# XiaomiSmartHome_connect($hash) if( $init_done);
-
 		}
     }
 	else {
@@ -277,9 +287,8 @@ sub XiaomiSmartHome_Write($@)
 			XiaomiSmartHome_disconnect($hash);
 			$p->close(); 
 			return undef;
-	}
-	
-	}
+			}
+		}
 	my $GATEWAY = inet_ntoa(inet_aton($hash->{GATEWAY}));
 	$hash->{GATEWAY_IP} = $GATEWAY;
 	my $msg;
@@ -287,31 +296,33 @@ sub XiaomiSmartHome_Write($@)
 		{
 		$msg  = '{"cmd":"' .$cmd . '","sid":"' . $val . '"}';
 		}
-	else {
-		if ( $hash->{READINGS}{password}{VAL}  !~ /^[a-zA-Z0-9]{16}$/ )
-			{
-			Log3 $name, 1, "$name: Write> Password not SET!";
-			readingsSingleUpdate($hash, "password", "giveaPassword!", 1);
-			return "for $cmd, wrong password, it must be hex and 16 characters";
-			}
-		else {
-			if ($cmd eq 'rgb')
-				{
-				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-				}
-			if ($cmd eq 'pct')
-				{
-				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-				}
-			if ($cmd eq 'power')
-				{
-				$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-				}
+	if ($cmd eq 'get_id_list')
+		{
+		Log3 $name, 5, "$name: Write> Get all Sensors";
+		$msg  = '{"cmd" : "get_id_list"}';
+		}	
+	if ( $hash->{READINGS}{password}{VAL}  !~ /^[a-zA-Z0-9]{16}$/ )
+		{
+		Log3 $name, 1, "$name: Write> Password not SET!";
+		readingsSingleUpdate($hash, "password", "giveaPassword!", 1);
+		return "for $cmd, wrong password, it must be hex and 16 characters";
 		}
-	}
+	else {
+		if ($cmd eq 'rgb')
+			{
+			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			}
+		if ($cmd eq 'pct')
+			{
+			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			}
+		if ($cmd eq 'power')
+			{
+			$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			}
+		}
 	return Log3 $name, 4, "$name: Write> - socket not connected" unless($hash->{CD});
-    
-    Log3 $name, 3, "$name: Write> $msg " . $GATEWAY;
+    Log3 $name, 4, "$name: Write> $msg " . $GATEWAY;
 	my $sock = $hash->{CD};
 	my $MAXLEN  = 1024;
 	$sock->mcast_send($msg,$GATEWAY .':9898') or die "send: $!";
@@ -593,7 +604,7 @@ sub XiaomiSmartHome_updateAllReadings($)
 {
 	my $hash = shift;
     my $name = $hash->{NAME};
-	Log3 $name, 5, "name> updateAllReadings> Starting UpdateALLReadings";
+	Log3 $name, 5, "$name> updateAllReadings> Starting UpdateALLReadings";
 	my $GATEWAY;
 	my $p = Net::Ping->new();
 	if ( ! $p->ping($hash->{GATEWAY})){
@@ -626,37 +637,8 @@ sub XiaomiSmartHome_updateAllReadings($)
 		 XiaomiSmartHome_connect($hash);
 		 return undef;
 		 }
-	my $sock = $hash->{CD};
-	my $MAXLEN  = 1024;
-	
-	my $msg = '{"cmd" : "get_id_list"}';
-	$sock->mcast_send($msg, $GATEWAY .':9898') or die "send: $!";
-	eval {
-		$sock->recv($msg, $MAXLEN)      or die "recv: $!";
-		Log3 $name, 5, "$name: updateAllReadings>" . $msg;
-		my $json = $hash->{helper}{JSON}->incr_parse($msg);
-		my $decoded = decode_json($msg);
-		if ($json){
-			Log3 $name, 5, "$name: updateAllReadings> Read:" .  $msg;
-			if ($decoded->{'cmd'} eq 'get_id_list_ack'){
-				my @sensors = @{decode_json($decoded->{data})};
-				foreach my $sensor (@sensors)	
-				{
-					$msg = '{"cmd":"read","sid":"' . $sensor . '" }';
-					Log3 $name, 4, "$name: updateAllReadings> PushRead:" . $sensor;
-					my $msg = '{"cmd":"read","sid":"' . $sensor . '" }';
-					$sock->mcast_send($msg, $GATEWAY .':9898') or die "send: $!";
-					eval {
-						$sock->recv($msg, $MAXLEN)      or die "recv: $!";
-						Log3 $name, 5, "$name: updateAllReadings> " . $msg;
-						Dispatch($hash, $msg, undef);
-					}
-					
-				}
-			}
-		}
-	}
-	#return undef;
+		 
+	XiaomiSmartHome_Write($hash, 'get_id_list');
 }
 #####################################
 

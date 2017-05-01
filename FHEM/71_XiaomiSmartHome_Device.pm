@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "0.19";
+my $version = "0.20";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
@@ -52,8 +52,6 @@ sub XiaomiSmartHome_Device_mot($$)
 	my ($hash, $mot) = @_;
 
 	InternalTimer(gettimeofday()+$mot, "XiaomiSmartHome_Device_on_timeout",$hash, 0);
-	# on-for-timer is now a on.
-
 
 }
 #####################################
@@ -74,26 +72,27 @@ sub XiaomiSmartHome_Device_Set($@)
 	   if($args[0] eq "on")
 	   {
 			IOWrite($hash,"power","on",$hash);
+			return;
 	   }
 	   elsif($args[0] eq "off")
 	   {
 			IOWrite($hash,"power","off",$hash);
+			return;
 	   }
 	}
-	if($cmd eq "open")
-	{
-		readingsSingleUpdate($hash, "state", "open", 1 );
-		return;
-	}
+	# if($cmd eq "open")
+	# {
+		# readingsSingleUpdate($hash, "state", "open", 1 );
+		# return;
+	# }
 	if($cmd eq "motionOffTimer")
 	{
 		readingsSingleUpdate($hash, "motionOffTimer", "$args[0]", 1 );;
 		return;
 	}
-	else
-	{
-		return "Unknown argument $cmd, choose one of $setlist";
-	}
+		
+	return "Unknown argument $cmd, choose one of $setlist";
+
 }
 
 
@@ -117,7 +116,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 	my $data = decode_json($decoded->{data});
 	readingsBeginUpdate( $hash );
 	if (defined $data->{status}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
 		readingsBulkUpdate($hash, "state", "$data->{status}", 1 );
 		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'){
 			readingsBulkUpdate($hash, "no_motion", "0", 1 );
@@ -127,33 +126,33 @@ sub XiaomiSmartHome_Device_Read($$$){
 			}
 		}
 	if (defined $data->{no_motion}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
 		readingsBulkUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
 		}
 	if (defined $data->{no_close}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_close: " . $data->{no_close};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_close: " . $data->{no_close};
 		readingsBulkUpdate($hash, "no_close", "$data->{no_close}", 1 );
 		}
 	if (defined $data->{voltage}){
 		my $bat = ($data->{voltage}/1000);
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
 		readingsBulkUpdate($hash, "battery", $bat, 1 );
 		}
 	if (defined $data->{temperature}){
 		my $temp = $data->{temperature};
 		$temp =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp;
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp;
 		readingsBulkUpdate($hash, "temperature", "$temp", 1 );
 		}
 	if (defined $data->{humidity}){
 		my $hum = $data->{humidity};
 		$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
 		readingsBulkUpdate($hash, "humidity", "$hum", 1 );
 		}
 	#86sw2 start
 	if (defined $data->{channel_0}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Channel_0: " . $data->{channel_0};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Channel_0: " . $data->{channel_0};
 		readingsBulkUpdate($hash, "channel_0", "$data->{channel_0}", 1 );
 		}
 	if (defined $data->{channel_1}){
@@ -163,25 +162,25 @@ sub XiaomiSmartHome_Device_Read($$$){
 	#86sw2 end
 	#plug start
 	if (defined $data->{load_voltage}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Voltage: " . $data->{load_voltage};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Voltage: " . $data->{load_voltage};
 		readingsBulkUpdate($hash, "LOAD_Voltage", "$data->{load_voltage}", 1 );
 		}
 	if (defined $data->{load_power}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Power: " . $data->{load_power};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Power: " . $data->{load_power};
 		readingsBulkUpdate($hash, "LOAD_Power", "$data->{load_power}", 1 );
 		}
 	if (defined $data->{power_consumed}){
-		Log3 $name, 3, "$name:" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " POWER_Consumed: " . $data->{power_consumed};
+		Log3 $name, 3, "$name:" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " POWER_Consumed: " . $data->{power_consumed};
 		readingsBulkUpdate($hash, "POWER_Consumed", "$data->{power_consumed}", 1 );
 		}
 	if (defined $data->{inuse}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " InUse: " . $data->{inuse};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " InUse: " . $data->{inuse};
 		readingsBulkUpdate($hash, "inuse", "$data->{inuse}", 1 );
 		}
 	#plug end
 	#cube start
 	if (defined $data->{rotate}){
-		Log3 $name, 3, "$name: DEV_Read>" . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Rotate: " . $data->{rotate};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Rotate: " . $data->{rotate};
 		readingsBulkUpdate($hash, "rotate", "$data->{rotate}", 1 );
 		readingsBulkUpdate($hash, "state", "rotate", 1 );
 		}
@@ -244,7 +243,6 @@ sub XiaomiSmartHome_Device_update($){
 sub XiaomiSmartHome_Device_Define($$) {
 	my ($hash, $def) = @_;
 	my ($name, $modul, $sid, $type, $iodev) = split("[ \t]+", $def);
-	#Log3 "test", 3, "Define status = " . $status;
   	$hash->{TYPE} = $modul;
 	$hash->{MODEL} = $type;
 	$hash->{SID} = $sid;
@@ -256,7 +254,7 @@ sub XiaomiSmartHome_Device_Define($$) {
 	
 	if(defined($hash->{IODev}->{NAME})) {
         my $IOname = $hash->{IODev}->{NAME};
-		Log3 $name, 3, $IOname . ": DEV_Define> " .$name. ": " . $type . " I/O device is " . $hash->{IODev}->{NAME};
+		Log3 $name, 4, $IOname . ": DEV_Define> " .$name. ": " . $type . " I/O device is " . $hash->{IODev}->{NAME};
       } else {
            Log3 $name, 1, "$name DEV_Define> $type - no I/O device";
     }
@@ -266,7 +264,7 @@ sub XiaomiSmartHome_Device_Define($$) {
     
     return "XiaomiSmartHome device $hash->{SID} on XiaomiSmartHome $iodev already defined as $d->{NAME}." if( defined($d) && $d->{IODev} == $hash->{IODev} && $d->{NAME} ne $name );
 
-    Log3 $name, 3, $iodev . ": DEV_Define> " . $name . ": defined as ". $hash->{MODEL};
+    Log3 $name, 4, $iodev . ": DEV_Define> " . $name . ": defined as ". $hash->{MODEL};
     $attr{$name}{room} = "MiSmartHome" if( !defined( $attr{$name}{room} ) );
     if( $type eq 'motion') {
 		$attr{$name}{devStateIcon}  = 'motion:motion_detector@red off:motion_detector@green no_motion:motion_detector@green' if( !defined( $attr{$name}{devStateIcon} ) );
