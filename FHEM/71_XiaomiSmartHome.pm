@@ -50,7 +50,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 sub XiaomiSmartHome_updateAllReadings($);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "0.21";
+my $version = "0.22";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -60,8 +60,10 @@ my %sets = (
   "password"            => 1,
   "rgb:colorpicker,RGB" => 1,
   "pct:colorpicker,BRI,0,1,100" => 1,
+  "volume:slider,0,1,100" => 1,
   "off"                 => 0,
   "on"                  => 0,
+  "ringtone:0,1,2,3,4,5,6,7,8,13,21,22,23,24,25,26,27,28,29,10000,10001" => 1,
 );
 
 
@@ -300,7 +302,7 @@ sub XiaomiSmartHome_Write($@)
 		{
 		Log3 $name, 5, "$name: Write> Get all Sensors";
 		$msg  = '{"cmd" : "get_id_list"}';
-		}	
+		}
 	if ( $hash->{READINGS}{password}{VAL}  !~ /^[a-zA-Z0-9]{16}$/ )
 		{
 		Log3 $name, 1, "$name: Write> Password not SET!";
@@ -319,6 +321,16 @@ sub XiaomiSmartHome_Write($@)
 		if ($cmd eq 'power')
 			{
 			$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			}
+		if ($cmd eq 'ringtone')
+			{
+			my $vol = $hash->{READINGS}{volume}{VAL};
+			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $val . ',\"vol\":' . $vol . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			}
+		if ($cmd eq 'volume')
+			{
+			my $rt = $hash->{READINGS}{ringtone}{VAL};
+			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $rt . ',\"vol\":' .$val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 			}
 		}
 	return Log3 $name, 4, "$name: Write> - socket not connected" unless($hash->{CD});
@@ -379,6 +391,8 @@ sub XiaomiSmartHome_Notify($$)
 	return "" if(IsDisabled($ownName)); # Return without any further action if the module is disabled
 	$attr{$own_hash->{NAME}}{webCmd} = "pct:rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off" if ( ! $attr{$own_hash->{NAME}}{webCmd} || $attr{$own_hash->{NAME}}{webCmd} eq "rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off" );
 	readingsSingleUpdate($own_hash, "pct", 100, 1) if ( ! $own_hash->{READINGS}{pct}{VAL});	
+	readingsSingleUpdate($own_hash, "ringtone", 21, 1) if ( ! $own_hash->{READINGS}{ringtone}{VAL});	
+	readingsSingleUpdate($own_hash, "volume", 10, 1) if ( ! $own_hash->{READINGS}{volume}{VAL});	
 	my $devName = $dev_hash->{NAME}; # Device that created the events
 	my $events = deviceEvents($dev_hash, 1);
 	if($devName eq "global" && grep(m/^INITIALIZED|REREADCFG$/, @{$events}))
@@ -474,10 +488,23 @@ sub XiaomiSmartHome_Set($@)
 		my $rgb = sprintf("%d", hex($MIpct . $hash->{helper}{prevrgbvalue}));
 		XiaomiSmartHome_Write($hash,'pct',$rgb);
 	}
-	
+	elsif($cmd eq "ringtone")
+	{
+		my $ownName = $hash->{NAME};
+		Log3 $ownName, 4, "$ownName: Set> $cmd, $args[0]";
+		readingsSingleUpdate( $hash, 'ringtone', $args[0], 1 );
+		XiaomiSmartHome_Write($hash,'ringtone',$args[0]);
+	}
+	elsif($cmd eq "volume")
+	{
+		my $ownName = $hash->{NAME};
+		Log3 $ownName, 4, "$ownName: Set> $cmd, $args[0]";
+		readingsSingleUpdate( $hash, 'volume', $args[0], 1 );
+		XiaomiSmartHome_Write($hash,'volume',$args[0]);
+	}
 	else
 	{
-		return "Unknown argument! $cmd, $args[0], choose one of password rgb";
+		return "Unknown argument! $cmd, $args[0], choose one of password rgb volume";
 	}
 }
 #####################################
