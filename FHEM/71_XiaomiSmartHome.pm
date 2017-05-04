@@ -50,7 +50,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 sub XiaomiSmartHome_updateAllReadings($);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "0.22";
+my $version = "0.23";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -124,9 +124,14 @@ sub XiaomiSmartHome_Read($) {
 			if ($decoded->{'model'} && $decoded->{'model'} eq 'gateway' ){
 				if ($decoded->{'cmd'} eq 'report'){
 					my $data = decode_json($decoded->{data});
+					Log3 $name, 5, "$name: Read>" . " Data: " . $data ;
 					if (defined $data->{rgb}){
 						Log3 $name, 3, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
 						readingsBulkUpdate($hash, "RGB", $data->{rgb} , 1 );
+						}
+					if (defined $data->{illumination}){
+						Log3 $name, 3, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " Illumination: " . $data->{illumination} ;
+						readingsBulkUpdate($hash, "illumination", $data->{illumination} , 1 );
 						}
 				}
 				elsif ($decoded->{'cmd'} eq 'heartbeat'){
@@ -148,6 +153,7 @@ sub XiaomiSmartHome_Read($) {
 				}
 				else {
 					readingsBulkUpdate($hash, 'heartbeat', "Write_OK", 1 );	
+					readingsBulkUpdate($hash, "proto_version", $data->{proto_version} , 1 );
 				}
 			}
 			readingsEndUpdate( $hash, 1 );
