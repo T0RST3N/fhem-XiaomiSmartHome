@@ -48,9 +48,8 @@ use SetExtensions;
 
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
-sub XiaomiSmartHome_updateAllReadings($);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "0.23";
+my $version = "1.00";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -60,10 +59,11 @@ my %sets = (
   "password"            => 1,
   "rgb:colorpicker,RGB" => 1,
   "pct:colorpicker,BRI,0,1,100" => 1,
-  "volume:slider,0,1,100" => 1,
   "off"                 => 0,
   "on"                  => 0,
+  "volume:slider,1,1,100" => 0,
   "ringtone:0,1,2,3,4,5,6,7,8,13,21,22,23,24,25,26,27,28,29,10000,10001" => 1,
+  "ringvol" => 2,
 );
 
 
@@ -90,7 +90,11 @@ sub XiaomiSmartHome_Initialize($) {
 						"4:XiaomiSmartHome_Device"      => "^.+switch",
 						"5:XiaomiSmartHome_Device"      => "^.+cube",
 						"6:XiaomiSmartHome_Device"      => "^.+plug",
-						"7:XiaomiSmartHome_Device"      => "^.+86sw2"};
+						"7:XiaomiSmartHome_Device"      => "^.+86sw1",
+						"8:XiaomiSmartHome_Device"      => "^.+86sw2",
+						"9:XiaomiSmartHome_Device"      => "^.+ctrl_neutral1",
+						"10:XiaomiSmartHome_Device"      => "^.+ctrl_neutral2",
+						"11:XiaomiSmartHome_Device"      => "^.+rgbw_light"};
 	FHEM_colorpickerInit();
 }
 #####################################
@@ -110,21 +114,31 @@ sub XiaomiSmartHome_Read($) {
     }
 
     my $json = $hash->{helper}{JSON}->incr_parse($buf);
-	my $decoded = decode_json($buf);
+	my $decoded = eval{decode_json($buf)};
+	if ($@) {
+		Log3 $name, 1, "$name: Read> Error while request: $@";
+		return;
+	}
 	if ( ! $decoded ) {
-		Log3 $name, 4, "$name: Read> Error no JSON Data " . $buf;
+		Log3 $name, 5, "$name: Read> Error no JSON Data " . $buf;
 		return;
 	}
     if ($json)
     {
         Log3 $name, 5, "$name: Read> " .  $buf;
-		readingsBeginUpdate( $hash ); 
 		if ($decoded->{'cmd'} eq 'report' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'write_ack'){
+			if ($decoded->{'sid'} ne $hash->{SID} ){
+				Log3 $name, 5, "$name: Read> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
+				return;
+			}
 			readingsBeginUpdate( $hash );
 			if ($decoded->{'model'} && $decoded->{'model'} eq 'gateway' ){
 				if ($decoded->{'cmd'} eq 'report'){
-					my $data = decode_json($decoded->{data});
-					Log3 $name, 5, "$name: Read>" . " Data: " . $data ;
+					my $data = eval{decode_json($decoded->{data})};
+						if ($@) {
+							Log3 $name, 1, "$name: Read> Error while request: $@";
+							return;
+						}
 					if (defined $data->{rgb}){
 						Log3 $name, 3, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
 						readingsBulkUpdate($hash, "RGB", $data->{rgb} , 1 );
@@ -135,10 +149,16 @@ sub XiaomiSmartHome_Read($) {
 						}
 				}
 				elsif ($decoded->{'cmd'} eq 'heartbeat'){
-					my $data = decode_json($decoded->{data});
+					my $data = eval{decode_json($decoded->{data})};
+					if ($@) {
+						Log3 $name, 1, "$name: Read> Error while request: $@";
+						return;
+					}
 					if ($data->{ip} eq $hash->{GATEWAY_IP}){
 						readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'}, 1 );
 						readingsBulkUpdate($hash, 'token', $decoded->{'token'}, 1 );
+						Log3 $name, 4, "$name: Read> Heartbeat from $data->{ip} received with $decoded->{'sid'}";
+						#$hash->{SID} = $decoded->{'sid'};
 					}
 					else {
 						Log3 $name, 4, "$name: Read> IP-Heartbeat Data didnt match! $data->{ip}  " . $hash->{GATEWAY_IP} ;
@@ -146,8 +166,16 @@ sub XiaomiSmartHome_Read($) {
 				}
 			}
 			if ($decoded->{'cmd'} eq 'write_ack'){
+				if ($decoded->{'sid'} ne $hash->{SID} ){
+					Log3 $name, 5, "$name: Read> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
+				return;
+				}
 				Log3 $name, 4, "$name: Read> Write answer " . $hash->{GATEWAY} ;
-				my $data = decode_json($decoded->{data});
+				my $data = eval{decode_json($decoded->{data})};
+					if ($@) {
+						Log3 $name, 1, "$name: Read> Error while request: $@";
+						return;
+					}
 				if ($data->{error}){
 					readingsBulkUpdate($hash, 'heartbeat', $data->{error}, 1 );	
 				}
@@ -160,7 +188,15 @@ sub XiaomiSmartHome_Read($) {
 			return;
 		}
 		if ($decoded->{'cmd'} eq 'get_id_list_ack'){
-			my @sensors = @{decode_json($decoded->{data})};
+			if ($decoded->{'sid'} ne $hash->{SID} ){
+				Log3 $name, 5, "$name: Read> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
+				return;
+			}
+			my @sensors = eval{ @{decode_json($decoded->{data})}};
+				if ($@) {
+					Log3 $name, 1, "$name: Read> Error while request: $@";
+					return;
+				}
 			foreach my $sensor (@sensors)	
 				{
 				Log3 $name, 4, "$name: Read> PushRead:" . $sensor;
@@ -169,7 +205,7 @@ sub XiaomiSmartHome_Read($) {
 			return;
 		}
 
-		Log3 $name, 4, "$name: Read> dispatch " . $buf;
+		Log3 $name, 5, "$name: Read> Dispatch " . $buf;
 		Dispatch($hash, $buf, undef);
 			
 
@@ -194,42 +230,52 @@ sub XiaomiSmartHome_getLocalIP(){
 sub XiaomiSmartHome_getGatewaySID($){
 	my ($hash, $def) = @_;
 	my $name = $hash->{NAME};
+	my $ip = $hash->{GATEWAY_IP};
 	my $json;
 	my $decoded;
 	my $timeout = $hash->{TIMEOUT} ? $hash->{TIMEOUT} : 3;
 	my $sidsock = IO::Socket::Multicast->new( Proto     => 'udp',LocalAddr => $hash->{FHEMIP}, LocalPort =>'4321', ReuseAddr => 1, Timeout => $timeout) or die "Creating socket: $!\n";
-	$sidsock->setsockopt(SOL_SOCKET, SO_RCVTIMEO, pack('l!l!', 30, 0))   or die "setsockopt: $!";
+	$sidsock->setsockopt(SOL_SOCKET, SO_RCVTIMEO, pack('l!l!', 10, 0))   or die "setsockopt: $!";
 	if ($sidsock){
 		my $msg = '{"cmd":"whois"}';
-		$sidsock->mcast_send($msg,'224.0.0.50:4321') or die "send: $!";
+		$sidsock->mcast_send($msg,$ip . ':4321') or die "send: $!";
 		eval {
 			$sidsock->recv($msg, 1024)  or die "recv: $!";
 			$json = $hash->{helper}{JSON}->incr_parse($msg);
-			$decoded = decode_json($msg);
-			$sidsock->close();
+			Log3 $name, 5, "$name: getGatewaySID> Answer $msg";
+			$decoded = eval{decode_json($msg)};
+			if ($@) {
+				Log3 $name, 1, "$name: getGatewaySID> Error while request: $@";
+				return;
+			}
+			if ($json) {
+				if ($decoded->{'ip'} eq $ip){
+					Log3 $name, 4, "$name: getGatewaySID> Find SID for Gateway: $decoded->{sid}";
+					$sidsock->close();
+					$hash->{SID} =  $decoded->{sid};
+					return $decoded->{sid};
+					}
+				else {
+					Log3 $name, 4, "$name: getGatewaySID> whois Data didnt match! $decoded->{sid} $decoded->{'ip'} ". $ip ;
+					}
+				}			
 			};
 		if ($@) {
-			Log3 $name, 1, "$name: getGatewaySID> Error $@\n";
+			Log3 $name, 1, "$name: getGatewaySID> Error no response from whois!! STOP!!";
 			$hash->{STATE} = "Disconnected";
 			XiaomiSmartHome_disconnect($hash);
 			return undef;
 			}
 	}
-	if ($json)
-    {
-		if ($decoded->{'sid'} ne '')
-		{
-			Log3 $name, 4, "$name: Find SID for Gateway: $decoded->{'sid'}";
-			return $decoded->{'sid'};
-		}
-    }
 	else {
 		Log3 $name, 5, "$name: Did not find a SID for Gateway disconnecting";
 		$hash->{STATE} = "Disconnected";
 		XiaomiSmartHome_disconnect($hash);
+		return undef;
 		}
 }
 #####################################
+
 
 sub XiaomiSmartHome_Define($$) {
     my ($hash, $def) = @_;
@@ -243,22 +289,37 @@ sub XiaomiSmartHome_Define($$) {
 	if ( ! $p->ping($param[2])){
 		$hash->{STATE} = "Disconnected";
 		XiaomiSmartHome_disconnect($hash);
-		Log3 $name, 5, "$name: Ping ERROR Gateway disconnecting";
+		Log3 $name, 5, "$name: Define> Ping ERROR Gateway disconnecting";
 		$p->close(); 
 	}
+	my $GATEWAY_IP = $param[2];
 	my $definition = $param[2];
 	$hash->{DEF} = $definition;
 	$hash->{NOTIFYDEV} = "global";
 	$hash->{NAME}  = $param[0];
 	$hash->{VERSION}  = $version;
     $hash->{GATEWAY} = $param[2];
-	$hash->{GATEWAY_IP} = $param[2];
 	$hash->{helper}{JSON} = JSON->new->utf8();
 	$hash->{FHEMIP} = XiaomiSmartHome_getLocalIP();
 	$hash->{STATE} = "initialized";
-	$hash->{SID} = XiaomiSmartHome_getGatewaySID($hash);
-    $hash->{helper}{host} = $definition;    
-	Log3 $name, 5, "$name: $definition";
+	$hash->{helper}{host} = $definition;   
+	if( $hash->{GATEWAY} !~ m/^\d+\.\d+\.\d+\.\d+$/ ){
+		eval {
+			$GATEWAY_IP = inet_ntoa(inet_aton($hash->{GATEWAY})) ;
+			$hash->{GATEWAY_IP} = $GATEWAY_IP;
+			Log3 $name, 1, "$name: Define> Set GATEWAYs IP: " .  $GATEWAY_IP;
+			};
+		if ($@) {
+			Log3 $name, 1, "$name: Define> Error $@\n";
+			$hash->{STATE} = "Disconnected";
+			XiaomiSmartHome_disconnect($hash);
+			return undef;
+			}
+	}
+	$hash->{GATEWAY_IP} = $GATEWAY_IP;
+	#$hash->{SID} =  XiaomiSmartHome_getGatewaySID($hash);
+ 
+	Log3 $name, 5, "$name: Define> $definition";
 	# Define devStateIcon
 	$attr{$hash->{NAME}}{devStateIcon} = '{Color_devStateIcon(ReadingsVal($name,"rgb","000000"))}' if(!defined($attr{$hash->{NAME}}{devStateIcon}));
 	
@@ -288,6 +349,7 @@ sub XiaomiSmartHome_Write($@)
 		return undef;
 		}
 	else{
+		#Check DNS if IP has changed
 		my $p = Net::Ping->new();
 		if ( ! $p->ping($hash->{GATEWAY})){
 			Log3 $name, 1, "$name: Write> Ping to $hash->{helper}{host} failed";
@@ -304,39 +366,53 @@ sub XiaomiSmartHome_Write($@)
 		{
 		$msg  = '{"cmd":"' .$cmd . '","sid":"' . $val . '"}';
 		}
-	if ($cmd eq 'get_id_list')
+	elsif ($cmd eq 'get_id_list')
 		{
-		Log3 $name, 5, "$name: Write> Get all Sensors";
+		Log3 $name, 4, "$name: Write> Get all Sensors";
 		$msg  = '{"cmd" : "get_id_list"}';
 		}
-	if ( $hash->{READINGS}{password}{VAL}  !~ /^[a-zA-Z0-9]{16}$/ )
-		{
-		Log3 $name, 1, "$name: Write> Password not SET!";
-		readingsSingleUpdate($hash, "password", "giveaPassword!", 1);
-		return "for $cmd, wrong password, it must be hex and 16 characters";
-		}
 	else {
-		if ($cmd eq 'rgb')
+		if ( $hash->{READINGS}{password}{VAL}  !~ /^[a-zA-Z0-9]{16}$/ )
 			{
-			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			Log3 $name, 1, "$name: Write> Password not SET!";
+			readingsSingleUpdate($hash, "password", "giveaPassword!", 1);
+			return "for $cmd, wrong password, it must be hex and 16 characters";
 			}
-		if ($cmd eq 'pct')
-			{
-			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-			}
-		if ($cmd eq 'power')
-			{
-			$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-			}
-		if ($cmd eq 'ringtone')
-			{
-			my $vol = $hash->{READINGS}{volume}{VAL};
-			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $val . ',\"vol\":' . $vol . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
-			}
-		if ($cmd eq 'volume')
-			{
-			my $rt = $hash->{READINGS}{ringtone}{VAL};
-			$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $rt . ',\"vol\":' .$val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+		else {
+			if ($cmd eq 'rgb')
+				{
+				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'pct')
+				{
+				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"rgb\":' . $val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'power')
+				{
+				$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'ctrl')
+				{
+				$msg  = '{"cmd":"write","model":"ctrl_neutral1","sid":"' . $iohash->{SID} . '","data":"{\"channel_0\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'channel_0')
+				{
+				$msg  = '{"cmd":"write","model":"ctrl_neutral2","sid":"' . $iohash->{SID} . '","data":"{\"channel_0\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'channel_1')
+				{
+				$msg  = '{"cmd":"write","model":"ctrl_neutral2","sid":"' . $iohash->{SID} . '","data":"{\"channel_1\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'ringtone')
+				{
+				my $vol = $hash->{READINGS}{volume}{VAL};
+				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $val . ',\"vol\":' . $vol . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'volume')
+				{
+				my $rt = $hash->{READINGS}{ringtone}{VAL};
+				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $rt . ',\"vol\":' .$val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
 			}
 		}
 	return Log3 $name, 4, "$name: Write> - socket not connected" unless($hash->{CD});
@@ -391,20 +467,20 @@ sub XiaomiSmartHome_Get($@)
 
 sub XiaomiSmartHome_Notify($$)
 {
- 	my ($own_hash, $dev_hash) = @_;
-	my $ownName = $own_hash->{NAME}; # own name / hash
+ 	my ($hash, $dev_hash) = @_;
+	my $ownName = $hash->{NAME}; # own name / hash
 	Log3 $ownName, 5, "$ownName: Notify> NotifyStart";
 	return "" if(IsDisabled($ownName)); # Return without any further action if the module is disabled
-	$attr{$own_hash->{NAME}}{webCmd} = "pct:rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off" if ( ! $attr{$own_hash->{NAME}}{webCmd} || $attr{$own_hash->{NAME}}{webCmd} eq "rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off" );
-	readingsSingleUpdate($own_hash, "pct", 100, 1) if ( ! $own_hash->{READINGS}{pct}{VAL});	
-	readingsSingleUpdate($own_hash, "ringtone", 21, 1) if ( ! $own_hash->{READINGS}{ringtone}{VAL});	
-	readingsSingleUpdate($own_hash, "volume", 10, 1) if ( ! $own_hash->{READINGS}{volume}{VAL});	
+	$attr{$hash->{NAME}}{webCmd} = "pct:rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off" if ( ! $attr{$hash->{NAME}}{webCmd} || $attr{$hash->{NAME}}{webCmd} eq "rgb:rgb ff0000:rgb 00ff00:rgb 0000ff:on:off" );
+	readingsSingleUpdate($hash, "pct", 100, 1) if ( ! $hash->{READINGS}{pct}{VAL});	
+	readingsSingleUpdate($hash, "ringtone", 21, 1) if ( ! $hash->{READINGS}{ringtone}{VAL});	
+	readingsSingleUpdate($hash, "volume", 10, 1) if ( ! $hash->{READINGS}{volume}{VAL});	
 	my $devName = $dev_hash->{NAME}; # Device that created the events
 	my $events = deviceEvents($dev_hash, 1);
 	if($devName eq "global" && grep(m/^INITIALIZED|REREADCFG$/, @{$events}))
 	{
 		Log3 $ownName, 5, "$ownName: Notify> Starting Connect after global";
-		XiaomiSmartHome_connect($own_hash);
+		XiaomiSmartHome_connect($hash) if ($hash->{SID});
 		CommandDeleteReading( undef, "$ownName HEARTBEAT" ) if(defined(ReadingsVal($ownName,"HEARTBEAT",undef)));
 	}
 }
@@ -494,11 +570,14 @@ sub XiaomiSmartHome_Set($@)
 		my $rgb = sprintf("%d", hex($MIpct . $hash->{helper}{prevrgbvalue}));
 		XiaomiSmartHome_Write($hash,'pct',$rgb);
 	}
-	elsif($cmd eq "ringtone")
+	elsif($cmd eq "ringtone" || $cmd eq "ringvol" )
 	{
 		my $ownName = $hash->{NAME};
 		Log3 $ownName, 4, "$ownName: Set> $cmd, $args[0]";
 		readingsSingleUpdate( $hash, 'ringtone', $args[0], 1 );
+		if ($args[1]){
+			readingsSingleUpdate( $hash, 'volume', $args[1], 1 );
+		}
 		XiaomiSmartHome_Write($hash,'ringtone',$args[0]);
 	}
 	elsif($cmd eq "volume")
@@ -563,7 +642,7 @@ sub XiaomiSmartHome_connect($)
 			return undef;
 			}
 		}
-
+    XiaomiSmartHome_getGatewaySID($hash);
 	my $timeout = $hash->{TIMEOUT} ? $hash->{TIMEOUT} : 3;
 	my $sock = IO::Socket::Multicast->new( Proto     => 'udp', LocalPort =>'9898', ReuseAddr => 1, Timeout => $timeout) or die "Creating socket: $!\n";
 	$sock->setsockopt(SOL_SOCKET, SO_RCVTIMEO, pack('l!l!', 30, 0))   or die "setsockopt: $!";
@@ -574,7 +653,7 @@ sub XiaomiSmartHome_connect($)
 		$sock->mcast_ttl(32);
 		$sock->mcast_loopback(1);
 		$hash->{helper}{ConnectionState} = "Connected";
-		$hash->{SID} = XiaomiSmartHome_getGatewaySID($hash);
+		#$hash->{SID} = XiaomiSmartHome_getGatewaySID($hash);
 		if ($hash->{helper}{ConnectionState} ne ReadingsVal($name, "state", "" ))
 		{
 			readingsSingleUpdate($hash, "state", $hash->{helper}{ConnectionState}, 1);
@@ -637,7 +716,7 @@ sub XiaomiSmartHome_updateAllReadings($)
 {
 	my $hash = shift;
     my $name = $hash->{NAME};
-	Log3 $name, 5, "$name> updateAllReadings> Starting UpdateALLReadings";
+	Log3 $name, 5, "$name: updateAllReadings> Starting UpdateALLReadings";
 	my $GATEWAY;
 	my $p = Net::Ping->new();
 	if ( ! $p->ping($hash->{GATEWAY})){
@@ -673,14 +752,15 @@ sub XiaomiSmartHome_updateAllReadings($)
 		 
 	XiaomiSmartHome_Write($hash, 'get_id_list');
 }
-#####################################
+
 
 1;
 
 =pod
 =item device
-=item summary Module for XiaomiSmartHome Gateway to use with FHEM
-=item summary_DE Modul um ein XiaomiSmartHome Gateway in FHEM zu nutzen
+=item summary Module to control XiaomiSmartHome Gateway
+=item summary_DE Modul zum steuern des  XiaomiSmartHome Gateway
+
 
 =begin html
 
@@ -689,16 +769,77 @@ sub XiaomiSmartHome_updateAllReadings($)
 <ul>
     <i>XiaomiSmartHome</i> implements the XiaomiSmartHome Gateway and Sensors. 
     <a name="XiaomiSmartHome"></a>
-	<br>
-    <b>Define</b>
+	<br/>
+	<b>Prerequisite</b>
+	<ul>
+		<li>Installation of the following packages: apt-get install libio-socket-multicast-perl libjson-perl libcrypt-cbc-perl</li>
+		<li>And with CPAN: cpan Crypt::Cipher::AES</li>
+	</ul>
+	<br/>
+	<b>Define</b>
     <ul>
         <code>define &lt;name&gt; XiaomiSmartHome &lt;IP or Hostname&gt;</code>
         <br><br>
         Example: <code>define XiaomiSmartHome XiaomiSmartHome 192.168.1.xxx</code>
         <br><br>
     </ul>
-    <br>
+	<br/>
+	<b>Set Developermode on the gateway!</b>
+    <ul>
+		<p>Without the developer mode, no communication with the XiaomiSmartHome gateway is possible.
+		<br/>You need an android or ios device. You must often click on the APP versionsnumber to activate the hidden menu.
+		<br/>Here is how to turn on the developer mode.
+		<br/>Android -> https://louiszl.gitbooks.io/lumi-gateway-local-api/content/device_discover.html
+		<br/>IOS go here -> https://github.com/fooxy/homeassistant-aqara/wiki/Enable-dev-mode
+		<br/>The password shown in the app must set on the FHEM XioamiSmartHome Gatewaydevice!</p>
+    </ul>
+	<br/>
+	<b>Supported Sensors</b>
+	<ul>
+		<li>magnet: Window/Door magnetic sensor</li>
+		<li>motion: Human body motion sensor</li>
+		<li>sensor_ht: Temperatur and humidity sensor</li>
+		<li>switch: Wireless sensor switch</li>
+		<li>plug: Smart socket</li>
+		<li>cube: Cube sensor</li>
+		<li>86sw1: Wireless switch single</li>
+		<li>86sw2: Wireless switch double</li>
+		<li>ctrl_neutral1: Single bond ignition switch</li>
+		<li>ctrl_neutral2: Double bond ignition switch</li>
+		<li>rgbw_light: Smart lights (report only)</li>
+	</ul>
+	<br/>
+	<b>Heartbeat</b>
+	<ul>
+		<li>The XiaomiSmartHome Gateway send every 10 seconds a heartbeat</li>
+		<li>The XiaomiSmartHome Devices send every 60 minutes</li>
+		<li>The Reading heartbeat will show the SID if a heartbeat received</li>
+	</ul>
+	<br/>
+	<b>Set: Gateway</b>
+	<ul>
+		<li>password: without password no write to the gateway is possible. Use the MI APP to find the password</li>
+		<li>RGB(Colorpicker): set the color</li>
+		<li>PCT(Slider): set the brightness in percent</li>
+		<li>ringtone: set the ringtone 0-8,13,21-29,10001-.. | 10000 = off</li>
+		<li>volume: set the volume 1-100, (100 is very loud)</li>
+		<li>ringvol: set ringtone and volume in on step e.g. set [GWNAME] ringvol 21 10</li>
+	</ul>
+	<br/>
+	<b>Set: Devices</b>
+	<ul>
+		<li>motionOffTimer:  (only motionsensor)
+		<br/>You can set a motion Off Timer Attribut on the motion sensor device. You can set 1, 5 or 10 seconds after
+		<br/>the motion sensors will automatically set to off.
+		<br/>Background: The motionsensors does not send off immediately.
+		<br/>The Motionsensor send a no_motion after 120, 180, 300, 600, 1200 seconds no motion is detected.</li>
+		<li>Power: (only smart soket) on off switch a plug on or off</li>
+		<li>ctrl: (only single wirless switch) on off switch </li>
+		<li>channel_0: (only double wirless switch) on off switch </li>
+		<li>channel_1: (only double wirless switch) on off switch </li>
+	</ul>
 </ul>
+
 =end html
 
 =begin html_DE
@@ -706,23 +847,81 @@ sub XiaomiSmartHome_updateAllReadings($)
 <a name="XiaomiSmartHome"></a>
 <h3>XiaomiSmartHome</h3>
 <ul>
-    <i>XiaomiSmartHome</i> implements the XiaomiSmartHome Gateway and Sensors. 
+    <i>XiaomiSmartHome</i> Steuern des XiaomiSmartHome Gateway und deren verbundener Sensoren. 
     <a name="XiaomiSmartHome"></a>
-    <b>Define</b>
+	<br/>
+	<b>Vorraussetzungen</b>
+	<ul>
+		<li>Diese Pakete m&uumlssen installiert sein: apt-get install libio-socket-multicast-perl libjson-perl libcrypt-cbc-perl</li>
+		<li>Und mit CPAN: cpan Crypt::Cipher::AES</li>
+	</ul>
+	<br/>
+	<b>Define</b>
     <ul>
-        <code>define &lt;name&gt; XiaomiSmartHome &lt;IP or Hostname&gt;</code>
+        <code>define &lt;name&gt; XiaomiSmartHome &lt;IP oder Name&gt;</code>
         <br><br>
         Example: <code>define XiaomiSmartHome XiaomiSmartHome 192.168.1.xxx</code>
         <br><br>
     </ul>
-    <br>
-	<b>Prerequisite</b>
+	<br/>
+	<b>Entwicklermodus am Gatway setzen!</b>
+    <ul>
+		<p>Ohne Entwicklermodus ist keine Komunikation mit dem Gateway m&oumlglich.
+		<br/>Zum setzen des Entwicklermoduses braucht man ein android oder ios Ger&aumlt mit installierter MI APP. 
+		<br/>Um das versteckte Men&uuml zu &oumlffnen muss man mehrmals auf die Versionsnummer der MI APP klicken.
+		<br/>Hier finden Sie eine Anleitung mit Bildern.
+		<br/>Android -> https://louiszl.gitbooks.io/lumi-gateway-local-api/content/device_discover.html
+		<br/>IOS  -> https://github.com/fooxy/homeassistant-aqara/wiki/Enable-dev-mode
+		<br/>Das Passwort welches in der MI APP angezeigt wird muss im FHEM XiaomiSmartHome Gateway Device gesetzt werden!</p>
+    </ul>
+	<br/>
+	<b>Unterstütze Sensoren</b>
 	<ul>
-		<li>Installation of the following packages: apt-get install libio-socket-multicast-perl libjson-perl libcrypt-cbc-perl</li>
-		<li>And with CPAN: cpan Crypt::Cipher::AES</li>
+		<li>magnet: Magnetischer Fenster/T&uumlr Sensor</li>
+		<li>motion: Bewegungsmelder</li>
+		<li>sensor_ht: Temperatur und Luftdruck</li>
+		<li>switch: Funkschalter</li>
+		<li>plug: Schaltbare Funksteckdose</li>
+		<li>cube: W&uumlrfel Sensor</li>
+		<li>86sw1: Einfacher Wandfunkschalter</li>
+		<li>86sw2: Wandfunkschalter doppelt</li>
+		<li>ctrl_neutral1: Einfacher Wandschalter schaltbar</li>
+		<li>ctrl_neutral2: Doppelter Wandschalter schaltbar</li>
+		<li>rgbw_light: RBGW Lampe (nur Anzeige)</li>
+	</ul>
+	<br/>
+	<b>Heartbeat</b>
+	<ul>
+		<li>Das XiaomiSmartHome Gateway sendet alle 10 seconds einen heartbeat</li>
+		<li>Jedes XiaomiSmartHome Devices sendet alle 60 Minuten einen heartbeat</li>
+		<li>Das Reading heartbeat wird mit der SID des jeweiligen Gerätes beim empfang eines Heartbeat aktualisiert</li>
+	</ul>
+	<br/>
+	<b>Set: Gateway</b>
+	<ul>
+		<li>password: Ohne Passwort ist ein Schalten des GATEWAY nicht m&oumlglich. Das Passwort findet man in der MI APP</li>
+		<li>RGB(Colorpicker): Einstellen der LED Farbe des Gateways</li>
+		<li>PCT(Slider): Einstellen der Helligkeit des Gateways</li>
+		<li>ringtone: Wiedergeben eines Arlarmtones 0-8,13,21-29,10001-.. Benutzerdefinierte| 10000 = aus</li>
+		<li>volume: Einstellen der Lautst&aumlrke des Arlarmtones 1-100, (100 ist sehr laut!)</li>
+		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges verändern der Lautst&aumlrke set [GWNAME] ringvol 21 10</li>
+	</ul>
+	<br/>
+	<b>Set: Devices</b>
+	<ul>
+		<li>motionOffTimer:  (nur Bewegungsmelder)
+		<br/>Durch setzen des Parameters ist es m&oumlglich das das Reading des Bewegungsmelder nach 1, 5 oder 10 Sekunden
+		<br/>automatisch wieder auf off gestellt wird.
+		<br/>Hintergrund: Der Bewegungsmelder sendet kein selber kein off.
+		<br/>Der Bewegungsmelder sendet no_motion nach 120, 180, 300, 600, 1200 Sekunden wenn keine Bewegung festgestellt wurde.</li>
+		<li>Power: (nur Funksteckdose) on off Funktsteckdose ein oder ausschalten</li>
+		<li>ctrl: (nur Funkschalter) on off Funkschalter </li>
+		<li>channel_0: (nur Doppelter Wandschalter schaltbar) ein oder ausschalten </li>
+		<li>channel_1: (nur Doppelter Wandschalter schaltbar) ein oder ausschalten </li>
 	</ul>
 </ul>
-=end html
+
+=end html_DE
 
 
 =cut
