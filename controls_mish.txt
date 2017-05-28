@@ -1,2 +1,2 @@
-UPD 2017-05-18_11:42:17 32000 FHEM/71_XiaomiSmartHome.pm
+UPD 2017-05-28_09:43:07 32000 FHEM/71_XiaomiSmartHome.pm
 UPD 2017-05-18_11:38:12 21164 FHEM/71_XiaomiSmartHome_Device.pm

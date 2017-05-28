@@ -49,7 +49,7 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "1.00";
+my $version = "1.01";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -61,7 +61,7 @@ my %sets = (
   "pct:colorpicker,BRI,0,1,100" => 1,
   "off"                 => 0,
   "on"                  => 0,
-  "volume:slider,1,1,100" => 0,
+  "volume:slider,1,1,100" => 1,
   "ringtone:0,1,2,3,4,5,6,7,8,13,21,22,23,24,25,26,27,28,29,10000,10001" => 1,
   "ringvol" => 2,
 );
