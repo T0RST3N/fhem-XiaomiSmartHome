@@ -49,7 +49,7 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "1.01";
+my $version = "1.06";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -94,14 +94,22 @@ sub XiaomiSmartHome_Initialize($) {
 						"8:XiaomiSmartHome_Device"      => "^.+86sw2",
 						"9:XiaomiSmartHome_Device"      => "^.+ctrl_neutral1",
 						"10:XiaomiSmartHome_Device"      => "^.+ctrl_neutral2",
-						"11:XiaomiSmartHome_Device"      => "^.+rgbw_light"};
+						"11:XiaomiSmartHome_Device"      => "^.+rgbw_light",
+						"12:XiaomiSmartHome_Device"      => "^.+curtain",
+						"13:XiaomiSmartHome_Device"      => "^.+ctrl_ln1",
+						"14:XiaomiSmartHome_Device"      => "^.+ctrl_ln2",
+						"15:XiaomiSmartHome_Device"      => "^.+86plug",
+						"16:XiaomiSmartHome_Device"      => "^.+natgas",
+						"17:XiaomiSmartHome_Device"      => "^.+smoke"};
 	FHEM_colorpickerInit();
 }
 #####################################
-
 sub XiaomiSmartHome_Read($) {
     my ($hash) = @_;
     my $name = $hash->{NAME};
+	my $self = {}; # my new hash
+	my $new_hash = {};
+	
 	Log3 $name, 5, "$name: Read> Read start";
     my $buf = "";
     my $ret = sysread($hash->{CD}, $buf, 1024);
@@ -112,7 +120,6 @@ sub XiaomiSmartHome_Read($) {
         InternalTimer(gettimeofday() + 2, "XiaomiSmartHome_connect", $hash, 0);
         return;
     }
-
     my $json = $hash->{helper}{JSON}->incr_parse($buf);
 	my $decoded = eval{decode_json($buf)};
 	if ($@) {
@@ -126,90 +133,117 @@ sub XiaomiSmartHome_Read($) {
     if ($json)
     {
         Log3 $name, 5, "$name: Read> " .  $buf;
-		if ($decoded->{'cmd'} eq 'report' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'write_ack'){
-			if ($decoded->{'sid'} ne $hash->{SID} ){
-				Log3 $name, 5, "$name: Read> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
-				return;
-			}
-			readingsBeginUpdate( $hash );
-			if ($decoded->{'model'} && $decoded->{'model'} eq 'gateway' ){
-				if ($decoded->{'cmd'} eq 'report'){
-					my $data = eval{decode_json($decoded->{data})};
-						if ($@) {
-							Log3 $name, 1, "$name: Read> Error while request: $@";
-							return;
-						}
-					if (defined $data->{rgb}){
-						Log3 $name, 3, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
-						readingsBulkUpdate($hash, "RGB", $data->{rgb} , 1 );
-						}
-					if (defined $data->{illumination}){
-						Log3 $name, 3, "$name: Read>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " Illumination: " . $data->{illumination} ;
-						readingsBulkUpdate($hash, "illumination", $data->{illumination} , 1 );
-						}
-				}
-				elsif ($decoded->{'cmd'} eq 'heartbeat'){
-					my $data = eval{decode_json($decoded->{data})};
-					if ($@) {
-						Log3 $name, 1, "$name: Read> Error while request: $@";
-						return;
-					}
-					if ($data->{ip} eq $hash->{GATEWAY_IP}){
-						readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'}, 1 );
-						readingsBulkUpdate($hash, 'token', $decoded->{'token'}, 1 );
-						Log3 $name, 4, "$name: Read> Heartbeat from $data->{ip} received with $decoded->{'sid'}";
-						#$hash->{SID} = $decoded->{'sid'};
-					}
-					else {
-						Log3 $name, 4, "$name: Read> IP-Heartbeat Data didnt match! $data->{ip}  " . $hash->{GATEWAY_IP} ;
-					}
-				}
-			}
-			if ($decoded->{'cmd'} eq 'write_ack'){
-				if ($decoded->{'sid'} ne $hash->{SID} ){
-					Log3 $name, 5, "$name: Read> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
-				return;
-				}
-				Log3 $name, 4, "$name: Read> Write answer " . $hash->{GATEWAY} ;
-				my $data = eval{decode_json($decoded->{data})};
-					if ($@) {
-						Log3 $name, 1, "$name: Read> Error while request: $@";
-						return;
-					}
-				if ($data->{error}){
-					readingsBulkUpdate($hash, 'heartbeat', $data->{error}, 1 );	
-				}
-				else {
-					readingsBulkUpdate($hash, 'heartbeat', "Write_OK", 1 );	
-					readingsBulkUpdate($hash, "proto_version", $data->{proto_version} , 1 );
-				}
-			}
-			readingsEndUpdate( $hash, 1 );
-			return;
+		my $rsid = $decoded->{'sid'};
+		if ($decoded->{'cmd'} eq 'read_ack' || $decoded->{'cmd'} eq 'report' && $decoded->{'model'} ne 'gateway'|| $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} ne 'gateway' || $decoded->{'cmd'} eq 'write_ack' && $decoded->{'model'} ne 'gateway') {
+			Log3 $name, 5, "$name: Read> Dispatch " . $buf;
+			Dispatch($hash, $buf, undef);
 		}
-		if ($decoded->{'cmd'} eq 'get_id_list_ack'){
+		elsif ( $modules{XiaomiSmartHome}{defptr}{$rsid}->{SID} ne $hash->{SID} ){
+			$self = $modules{XiaomiSmartHome}{defptr}{$rsid};
+			Log3 $name, 5, "$name: Read> Change HASH Ref to $self->{NAME}";
+			XiaomiSmartHome_Reading ($self, $buf);
+			}
+		else
+			{
+			Log3 $name, 5, "$name: Read> HASH correctly";
+			XiaomiSmartHome_Reading ($hash, $buf);
+			}
+    }
+}
+#####################################
+sub XiaomiSmartHome_Reading ($@) {
+	my ($hash, $buf) = @_;
+	my $name = $hash->{NAME};
+	Log3 $name, 5, "$name: Reading> Reading start";
+    my $json = $hash->{helper}{JSON}->incr_parse($buf);
+	my $decoded = eval{decode_json($buf)};
+	if ($@) {
+		Log3 $name, 1, "$name: Reading> Error while request: $@";
+		return;
+		}
+	if ($json){
+		if ($decoded->{'cmd'} eq 'report' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} eq 'gateway' || $decoded->{'cmd'} eq 'write_ack'){
+					if ($decoded->{'sid'} ne $hash->{SID} ){
+						Log3 $name, 5, "$name: Reading> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping $hash->{SID} TT";
+						return;
+					}
+					readingsBeginUpdate( $hash );
+					if ($decoded->{'model'} && $decoded->{'model'} eq 'gateway' ){
+						if ($decoded->{'cmd'} eq 'report'){
+							my $data = eval{decode_json($decoded->{data})};
+								if ($@) {
+									Log3 $name, 1, "$name: Reading> Error while request: $@";
+									return;
+								}
+							if (defined $data->{rgb}){
+								Log3 $name, 3, "$name: Reading>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " RGB: " . $data->{rgb} ;
+								readingsBulkUpdate($hash, "RGB", $data->{rgb} , 1 );
+								}
+							if (defined $data->{illumination}){
+								Log3 $name, 3, "$name: Reading>" . " SID: " . $decoded->{'sid'}  . " Type: Gateway" . " Illumination: " . $data->{illumination} ;
+								readingsBulkUpdate($hash, "illumination", $data->{illumination} , 1 );
+								}
+						}
+						elsif ($decoded->{'cmd'} eq 'heartbeat'){
+							my $data = eval{decode_json($decoded->{data})};
+							if ($@) {
+								Log3 $name, 1, "$name: Reading> Error while request: $@";
+								return;
+							}
+							if ($data->{ip} eq $hash->{GATEWAY_IP}){
+								readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'}, 1 );
+								readingsBulkUpdate($hash, 'token', $decoded->{'token'}, 1 );
+								Log3 $name, 4, "$name: Reading> Heartbeat from $data->{ip} received with $decoded->{'sid'}";
+								#$hash->{SID} = $decoded->{'sid'};
+							}
+							else {
+								Log3 $name, 4, "$name: Reading> IP-Heartbeat Data didnt match! $data->{ip}  " . $hash->{GATEWAY_IP} ;
+							}
+						}
+					}
+					if ($decoded->{'cmd'} eq 'write_ack'){
+						if ($decoded->{'sid'} ne $hash->{SID} ){
+							Log3 $name, 5, "$name: Reading> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
+						return;
+						}
+						Log3 $name, 4, "$name: Reading> Write answer " . $hash->{GATEWAY} ;
+						my $data = eval{decode_json($decoded->{data})};
+							if ($@) {
+								Log3 $name, 1, "$name: Reading> Error while request: $@";
+								return;
+							}
+						if ($data->{error}){
+							readingsBulkUpdate($hash, 'heartbeat', $data->{error}, 1 );	
+						}
+						else {
+							readingsBulkUpdate($hash, 'heartbeat', "Write_OK", 1 );	
+							readingsBulkUpdate($hash, "proto_version", $data->{proto_version} , 1 );
+						}
+					}
+					readingsEndUpdate( $hash, 1 );
+					return;
+				}
+		elsif ($decoded->{'cmd'} eq 'get_id_list_ack'){
 			if ($decoded->{'sid'} ne $hash->{SID} ){
-				Log3 $name, 5, "$name: Read> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping";
+				Log3 $name, 5, "$name: Reading> $decoded->{'sid'} not matching with my SID $hash->{SID} skipping $hash";
 				return;
 			}
 			my @sensors = eval{ @{decode_json($decoded->{data})}};
 				if ($@) {
-					Log3 $name, 1, "$name: Read> Error while request: $@";
+					Log3 $name, 1, "$name: Reading> Error while request: $@";
 					return;
 				}
 			foreach my $sensor (@sensors)	
 				{
-				Log3 $name, 4, "$name: Read> PushRead:" . $sensor;
+				Log3 $name, 4, "$name: Reading> PushRead:" . $sensor;
 				XiaomiSmartHome_Write($hash, 'read',  $sensor );
 				}
 			return;
 		}
+	}
 
-		Log3 $name, 5, "$name: Read> Dispatch " . $buf;
-		Dispatch($hash, $buf, undef);
-			
-
-    }
+	Log3 $name, 5, "$name: Reading> Dispatch " . $buf;
+	Dispatch($hash, $buf, undef);
 }
 #####################################
 
@@ -253,6 +287,7 @@ sub XiaomiSmartHome_getGatewaySID($){
 					Log3 $name, 4, "$name: getGatewaySID> Find SID for Gateway: $decoded->{sid}";
 					$sidsock->close();
 					$hash->{SID} =  $decoded->{sid};
+					$modules{XiaomiSmartHome}{defptr}{$decoded->{sid}} = $hash;
 					return $decoded->{sid};
 					}
 				else {
@@ -302,7 +337,7 @@ sub XiaomiSmartHome_Define($$) {
 	$hash->{helper}{JSON} = JSON->new->utf8();
 	$hash->{FHEMIP} = XiaomiSmartHome_getLocalIP();
 	$hash->{STATE} = "initialized";
-	$hash->{helper}{host} = $definition;   
+	$hash->{helper}{host} = $definition;	
 	if( $hash->{GATEWAY} !~ m/^\d+\.\d+\.\d+\.\d+$/ ){
 		eval {
 			$GATEWAY_IP = inet_ntoa(inet_aton($hash->{GATEWAY})) ;
@@ -317,6 +352,7 @@ sub XiaomiSmartHome_Define($$) {
 			}
 	}
 	$hash->{GATEWAY_IP} = $GATEWAY_IP;
+	$modules{XiaomiSmartHome}{defptr}{$GATEWAY_IP} = $hash;
 	#$hash->{SID} =  XiaomiSmartHome_getGatewaySID($hash);
  
 	Log3 $name, 5, "$name: Define> $definition";
@@ -391,10 +427,18 @@ sub XiaomiSmartHome_Write($@)
 				{
 				$msg  = '{"cmd":"write","model":"plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 				}
+			if ($cmd eq '86power')
+				{
+				$msg  = '{"cmd":"write","model":"86plug","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
 			if ($cmd eq 'ctrl')
 				{
 				$msg  = '{"cmd":"write","model":"ctrl_neutral1","sid":"' . $iohash->{SID} . '","data":"{\"channel_0\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 				}
+			if ($cmd eq 'ctrl_ln1')
+				{
+				$msg  = '{"cmd":"write","model":"ctrl_ln1","sid":"' . $iohash->{SID} . '","data":"{\"channel_0\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+			}
 			if ($cmd eq 'channel_0')
 				{
 				$msg  = '{"cmd":"write","model":"ctrl_neutral2","sid":"' . $iohash->{SID} . '","data":"{\"channel_0\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
@@ -402,6 +446,14 @@ sub XiaomiSmartHome_Write($@)
 			if ($cmd eq 'channel_1')
 				{
 				$msg  = '{"cmd":"write","model":"ctrl_neutral2","sid":"' . $iohash->{SID} . '","data":"{\"channel_1\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'ctrl_ln2_0')
+				{
+				$msg  = '{"cmd":"write","model":"ctrl_ln2","sid":"' . $iohash->{SID} . '","data":"{\"channel_0\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'ctrl_ln2_1')
+				{
+				$msg  = '{"cmd":"write","model":"ctrl_ln2","sid":"' . $iohash->{SID} . '","data":"{\"channel_1\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 				}
 			if ($cmd eq 'ringtone')
 				{
@@ -412,6 +464,14 @@ sub XiaomiSmartHome_Write($@)
 				{
 				my $rt = $hash->{READINGS}{ringtone}{VAL};
 				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","short_id":0,"key":"8","data":"{\"mid\":' . $rt . ',\"vol\":' .$val . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'status')
+				{
+				$msg  = '{"cmd":"write","model":"curtain","sid":"' . $iohash->{SID} . '","data":"{\"status\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'level')
+				{
+				$msg  = '{"cmd":"write","model":"curtain","sid":"' . $iohash->{SID} . '","data":"{\"curtain_level\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 				}
 			}
 		}
@@ -800,13 +860,30 @@ sub XiaomiSmartHome_updateAllReadings($)
 		<li>motion: Human body motion sensor</li>
 		<li>sensor_ht: Temperatur and humidity sensor</li>
 		<li>switch: Wireless sensor switch</li>
-		<li>plug: Smart socket</li>
+		<li>plug & 86plug: Smart socket</li>
 		<li>cube: Cube sensor</li>
 		<li>86sw1: Wireless switch single</li>
 		<li>86sw2: Wireless switch double</li>
 		<li>ctrl_neutral1: Single bond ignition switch</li>
 		<li>ctrl_neutral2: Double bond ignition switch</li>
 		<li>rgbw_light: Smart lights (report only)</li>
+		<li>curtain: Curtain (Control only if device has reporte curtain_level)</li>
+		<li>smoke: smoke alarm detector</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>8: battery arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
+		<li>gas: gas alarm detector</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>2: analog arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
 	</ul>
 	<br/>
 	<b>Heartbeat</b>
@@ -881,13 +958,30 @@ sub XiaomiSmartHome_updateAllReadings($)
 		<li>motion: Bewegungsmelder</li>
 		<li>sensor_ht: Temperatur und Luftdruck</li>
 		<li>switch: Funkschalter</li>
-		<li>plug: Schaltbare Funksteckdose</li>
+		<li>plug & 86plug: Schaltbare Funksteckdose</li>
 		<li>cube: W&uumlrfel Sensor</li>
 		<li>86sw1: Einfacher Wandfunkschalter</li>
 		<li>86sw2: Wandfunkschalter doppelt</li>
 		<li>ctrl_neutral1: Einfacher Wandschalter schaltbar</li>
 		<li>ctrl_neutral2: Doppelter Wandschalter schaltbar</li>
 		<li>rgbw_light: RBGW Lampe (nur Anzeige)</li>
+		<li>curtain: Vorhangmotor (ohne das das device den curtain_level gemeldet hat ist ein steuern nicht möglich)</li>
+		<li>smoke: Rauchmelder</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>8: battery arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
+		<li>gas: Gasmelder</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>2: analog arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
 	</ul>
 	<br/>
 	<b>Heartbeat</b>
