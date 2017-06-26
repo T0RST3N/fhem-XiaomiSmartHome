@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "1.00";
+my $version = "1.05";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
@@ -35,7 +35,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
   
-  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light";
+  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -66,19 +66,25 @@ sub XiaomiSmartHome_Device_Set($@)
 	$setlist .= "motionOffTimer:1,5,10 " if ($hash->{MODEL} eq 'motion');
 	#$setlist = "open:noArg close:noArg " if ($hash->{MODEL} eq 'magnet');
 	$setlist .= "power:on,off " if ($hash->{MODEL} eq 'plug');
+	$setlist .= "power:on,off " if ($hash->{MODEL} eq '86plug');
 	$setlist .= "ctrl:on,off " if ($hash->{MODEL} eq 'ctrl_neutral1');
+	$setlist .= "ctrl:on,off " if ($hash->{MODEL} eq 'ctrl_ln1');
 	$setlist .= "channel_0:on,off channel_1:on,off " if ($hash->{MODEL} eq 'ctrl_neutral2');
+	$setlist .= "channel_0:on,off channel_1:on,off " if ($hash->{MODEL} eq 'ctrl_ln2');
+	$setlist .= "status:open,close,stop,auto level:slider,1,1,100 " if ($hash->{MODEL} eq 'curtain');
 	
 	if($cmd eq "power")
 	{
 	   if($args[0] eq "on")
 	   {
-			IOWrite($hash,"power","on",$hash);
+			IOWrite($hash,"power","on",$hash) if ($hash->{MODEL} eq 'plug');
+			IOWrite($hash,"86power","on",$hash) if ($hash->{MODEL} eq '86plug');
 			return;
 	   }
 	   elsif($args[0] eq "off")
 	   {
-			IOWrite($hash,"power","off",$hash);
+			IOWrite($hash,"power","off",$hash) if ($hash->{MODEL} eq 'plug');
+			IOWrite($hash,"86power","off",$hash) if ($hash->{MODEL} eq '86plug');
 			return;
 	   }
 	}
@@ -86,12 +92,14 @@ sub XiaomiSmartHome_Device_Set($@)
 	{
 	   if($args[0] eq "on")
 	   {
-			IOWrite($hash,"ctrl","on",$hash);
+			IOWrite($hash,"ctrl","on",$hash) if ($hash->{MODEL} eq 'ctrl_neutral1');
+			IOWrite($hash,"ctrl_ln1","on",$hash) if ($hash->{MODEL} eq 'ctrl_ln1');
 			return;
 	   }
 	   elsif($args[0] eq "off")
 	   {
-			IOWrite($hash,"ctrl","off",$hash);
+			IOWrite($hash,"ctrl","off",$hash) if ($hash->{MODEL} eq 'ctrl_neutral1');
+			IOWrite($hash,"ctrl_ln1","off",$hash) if ($hash->{MODEL} eq 'ctrl_ln1');
 			return;
 	   }
 	}
@@ -99,12 +107,14 @@ sub XiaomiSmartHome_Device_Set($@)
 	{
 	   if($args[0] eq "on")
 	   {
-			IOWrite($hash,"channel_0","on",$hash);
+			IOWrite($hash,"channel_0","on",$hash) if ($hash->{MODEL} eq 'ctrl_neutral2');
+			IOWrite($hash,"ctrl_ln2_0","on",$hash) if ($hash->{MODEL} eq 'ctrl_ln2');
 			return;
 	   }
 	   elsif($args[0] eq "off")
 	   {
-			IOWrite($hash,"channel_0","off",$hash);
+			IOWrite($hash,"channel_0","off",$hash) if ($hash->{MODEL} eq 'ctrl_neutral2');
+			IOWrite($hash,"ctrl_ln2_0","off",$hash) if ($hash->{MODEL} eq 'ctrl_ln2');
 			return;
 	   }
 	}
@@ -112,14 +122,44 @@ sub XiaomiSmartHome_Device_Set($@)
 	{
 	   if($args[0] eq "on")
 	   {
-			IOWrite($hash,"channel_1","on",$hash);
+			IOWrite($hash,"channel_1","on",$hash) if ($hash->{MODEL} eq 'ctrl_neutral2');
+			IOWrite($hash,"ctrl_ln2_1","on",$hash) if ($hash->{MODEL} eq 'ctrl_ln2');
 			return;
 	   }
 	   elsif($args[0] eq "off")
 	   {
-			IOWrite($hash,"channel_1","off",$hash);
+			IOWrite($hash,"channel_1","off",$hash) if ($hash->{MODEL} eq 'ctrl_neutral2');
+			IOWrite($hash,"ctrl_ln2_1","off",$hash) if ($hash->{MODEL} eq 'ctrl_ln2');
 			return;
 	   }
+	}
+	if($cmd eq "status")
+	{
+	   if($args[0] eq "open")
+	   {
+			IOWrite($hash,"status","open",$hash) ;
+			return;
+	   }
+	   elsif($args[0] eq "close")
+	   {
+			IOWrite($hash,"status","close",$hash) ;
+			return;
+	   }	
+	   elsif($args[0] eq "stop")
+	   {
+			IOWrite($hash,"status","stop",$hash) ;
+			return;
+	   }	
+	   elsif($args[0] eq "auto")
+	   {
+			IOWrite($hash,"status","auto",$hash) ;
+			return;
+	   }	
+	}
+	if($cmd eq "level")
+	{
+		IOWrite($hash,"level", $args[0] ,$hash) ;
+		return;	
 	}
 	# if($cmd eq "open")
 	# {
@@ -209,7 +249,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 		readingsBulkUpdate($hash, "channel_1", "$data->{channel_1}", 1 );
 		}
 	#86sw1 + 86sw2 + ctrl_neutral1 + ctrl_neutral2 end
-	#plug start
+	#plug & 86plug start
 	if (defined $data->{load_voltage}){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " LOAD_Voltage: " . $data->{load_voltage};
 		readingsBulkUpdate($hash, "LOAD_Voltage", "$data->{load_voltage}", 1 );
@@ -226,7 +266,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " InUse: " . $data->{inuse};
 		readingsBulkUpdate($hash, "inuse", "$data->{inuse}", 1 );
 		}
-	#plug end
+	#plug & 86plug end
 	#rgbw_light start
 	if (defined $data->{level}){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Level: " . $data->{level};
@@ -260,6 +300,18 @@ sub XiaomiSmartHome_Device_Read($$$){
 		readingsBulkUpdate($hash, "state", "rotate", 1 );
 		}
 	#cube end	
+	#smoke & natgast start
+	if (defined $data->{alarm}){
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Rotate: " . $data->{arlarm};
+		readingsBulkUpdate($hash, "arlarm", "$data->{arlarm}", 1 );
+		}
+	#smoke & natgast end
+	#curtain start
+	if (defined $data->{curtain_level}){
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Rotate: " . $data->{curtain_level};
+		readingsBulkUpdate($hash, "arlarm", "$data->{curtain_level}", 1 );
+		}
+	#curtain end
 	if ($decoded->{'cmd'} eq 'heartbeat'){
 		readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
 		}
@@ -280,10 +332,10 @@ sub XiaomiSmartHome_Device_Parse($$) {
 	}
 	my $sid = $decoded->{'sid'};
 	my $model = $decoded->{'model'};
-	if (my $io_hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid})
+	if (my $hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid})
 	{
 		Log3 $name, 4, "$name: DEV_Parse> IS DEFINED " . $model . " : " .$sid;
-		XiaomiSmartHome_Device_Read($io_hash, $msg, $name);
+		XiaomiSmartHome_Device_Read($hash, $msg, $name);
 	}
 	else
 	{
