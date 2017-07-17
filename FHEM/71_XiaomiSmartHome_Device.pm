@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "1.05";
+my $version = "1.07";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
