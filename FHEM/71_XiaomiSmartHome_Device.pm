@@ -411,7 +411,7 @@ sub XiaomiSmartHome_Device_Define($$) {
 	elsif ( $type eq 'sensor_ht') {
 		$attr{$name}{stateFormat}  = 'temperature °C, humidity %' if( !defined( $attr{$name}{stateFormat} ) );
 	}
-  elsif ( $type eq 'weather.v1') {
+    elsif ( $type eq 'weather.v1') {
 		$attr{$name}{stateFormat}  = 'temperature °C, humidity %, pressure kPa' if( !defined( $attr{$name}{stateFormat} ) );
 	}		
 	
