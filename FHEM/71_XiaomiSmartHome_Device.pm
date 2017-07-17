@@ -239,7 +239,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
 		readingsBulkUpdate($hash, "humidity", "$hum", 1 );
 		}
-  if (defined $data->{pressure}){
+    if (defined $data->{pressure}){
 		my $pres = $data->{pressure};
 		$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;

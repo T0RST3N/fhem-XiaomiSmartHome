@@ -84,7 +84,7 @@ sub XiaomiSmartHome_Initialize($) {
 	$hash->{AttrList}	= "disable:1,0 " .
 						  $readingFnAttributes;
 	
-	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"      => "^.+magnet",
+	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"   => "^.+magnet",
 						"2:XiaomiSmartHome_Device"      => "^.+motion",
 						"3:XiaomiSmartHome_Device"      => "^.+sensor_ht",
 						"4:XiaomiSmartHome_Device"      => "^.+switch",
@@ -93,14 +93,15 @@ sub XiaomiSmartHome_Initialize($) {
 						"7:XiaomiSmartHome_Device"      => "^.+86sw1",
 						"8:XiaomiSmartHome_Device"      => "^.+86sw2",
 						"9:XiaomiSmartHome_Device"      => "^.+ctrl_neutral1",
-						"10:XiaomiSmartHome_Device"      => "^.+ctrl_neutral2",
-						"11:XiaomiSmartHome_Device"      => "^.+rgbw_light",
-						"12:XiaomiSmartHome_Device"      => "^.+curtain",
-						"13:XiaomiSmartHome_Device"      => "^.+ctrl_ln1",
-						"14:XiaomiSmartHome_Device"      => "^.+ctrl_ln2",
-						"15:XiaomiSmartHome_Device"      => "^.+86plug",
-						"16:XiaomiSmartHome_Device"      => "^.+natgas",
-						"17:XiaomiSmartHome_Device"      => "^.+smoke"};
+						"10:XiaomiSmartHome_Device"     => "^.+ctrl_neutral2",
+						"11:XiaomiSmartHome_Device"     => "^.+rgbw_light",
+						"12:XiaomiSmartHome_Device"     => "^.+curtain",
+						"13:XiaomiSmartHome_Device"     => "^.+ctrl_ln1",
+						"14:XiaomiSmartHome_Device"     => "^.+ctrl_ln2",
+						"15:XiaomiSmartHome_Device"     => "^.+86plug",
+						"16:XiaomiSmartHome_Device"     => "^.+natgas",
+						"17:XiaomiSmartHome_Device"     => "^.+smoke"};
+						"18:XiaomiSmartHome_Device"     => "^.+weather.v1"};
 	FHEM_colorpickerInit();
 }
 #####################################
