@@ -35,7 +35,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
   
-  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke";
+  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -239,6 +239,12 @@ sub XiaomiSmartHome_Device_Read($$$){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum;
 		readingsBulkUpdate($hash, "humidity", "$hum", 1 );
 		}
+    if (defined $data->{pressure}){
+		my $pres = $data->{pressure};
+		$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;
+		readingsBulkUpdate($hash, "pressure", "$pres", 1 );
+		}
 	#86sw1 + 86sw2 + ctrl_neutral1 + ctrl_neutral2 start
 	if (defined $data->{channel_0}){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Channel_0: " . $data->{channel_0};
@@ -404,6 +410,9 @@ sub XiaomiSmartHome_Device_Define($$) {
 	}
 	elsif ( $type eq 'sensor_ht') {
 		$attr{$name}{stateFormat}  = 'temperature °C, humidity %' if( !defined( $attr{$name}{stateFormat} ) );
+	}
+    elsif ( $type eq 'weather.v1') {
+		$attr{$name}{stateFormat}  = 'temperature °C, humidity %, pressure kPa' if( !defined( $attr{$name}{stateFormat} ) );
 	}		
 	
 	if( $init_done ) {
