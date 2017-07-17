@@ -100,7 +100,7 @@ sub XiaomiSmartHome_Initialize($) {
 						"14:XiaomiSmartHome_Device"     => "^.+ctrl_ln2",
 						"15:XiaomiSmartHome_Device"     => "^.+86plug",
 						"16:XiaomiSmartHome_Device"     => "^.+natgas",
-						"17:XiaomiSmartHome_Device"     => "^.+smoke"};
+						"17:XiaomiSmartHome_Device"     => "^.+smoke",
 						"18:XiaomiSmartHome_Device"     => "^.+weather.v1"};
 	FHEM_colorpickerInit();
 }
