@@ -84,10 +84,10 @@ sub XiaomiSmartHome_Initialize($) {
 	$hash->{AttrList}	= "disable:1,0 " .
 						  $readingFnAttributes;
 	
-	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"   => "^.+magnet",
-						"2:XiaomiSmartHome_Device"      => "^.+motion",
+	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"   => ".*magnet.*",
+						"2:XiaomiSmartHome_Device"      => ".*motion.*",
 						"3:XiaomiSmartHome_Device"      => "^.+sensor_ht",
-						"4:XiaomiSmartHome_Device"      => "^.+switch",
+						"4:XiaomiSmartHome_Device"      => ".*switch.*",
 						"5:XiaomiSmartHome_Device"      => "^.+cube",
 						"6:XiaomiSmartHome_Device"      => "^.+plug",
 						"7:XiaomiSmartHome_Device"      => "^.+86sw1",

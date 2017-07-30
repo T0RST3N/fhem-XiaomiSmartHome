@@ -35,7 +35,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
   
-  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_motion.aq2";
+  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -63,8 +63,8 @@ sub XiaomiSmartHome_Device_Set($@)
 	return "\"set $name\" needs at least one argument" unless(defined($cmd));
 	
 	my $setlist = "";
-	$setlist .= "motionOffTimer:1,5,10 " if ($hash->{MODEL} eq 'motion'||'sensor_motion.aq2');
-	#$setlist = "open:noArg close:noArg " if ($hash->{MODEL} eq 'magnet');
+	$setlist .= "motionOffTimer:1,5,10 " if ($hash->{MODEL} =~ /motion/);
+	#$setlist = "open:noArg close:noArg " if ($hash->{MODEL} =~ /magnet/);
 	$setlist .= "power:on,off " if ($hash->{MODEL} eq 'plug');
 	$setlist .= "power:on,off " if ($hash->{MODEL} eq '86plug');
 	$setlist .= "ctrl:on,off " if ($hash->{MODEL} eq 'ctrl_neutral1');
@@ -207,10 +207,10 @@ sub XiaomiSmartHome_Device_Read($$$){
 	if (defined $data->{status}){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
 		readingsBulkUpdate($hash, "state", "$data->{status}", 1 );
-		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'||'sensor_motion.aq2'){
+		if ($data->{status} eq 'motion' && $hash->{MODEL} =~ /motion/){
 			readingsBulkUpdate($hash, "no_motion", "0", 1 );
 			}		
-		if ($data->{status} eq 'close' && $hash->{MODEL} eq 'magnet'){
+		if ($data->{status} eq 'close' && $hash->{MODEL} =~ /magnet/){
 			readingsBulkUpdate($hash, "no_close", "0", 1 );
 			}
 		}
@@ -372,7 +372,7 @@ sub XiaomiSmartHome_Device_update($){
     Log3 $name, 3, $name .": DEV_Update valueFn: ". $@ if($@);
     return undef if( !defined($value_fn) );
   }
-  if( $model eq 'motion'||'sensor_motion.aq2') {
+  if( $model =~ /motion/) {
 	XiaomiSmartHome_Device_mot($hash, $hash->{READINGS}{motionOffTimer}{VAL}) if( $hash->{READINGS}{motionOffTimer});
 	}
   # Update delete old reading Voltage
@@ -407,10 +407,10 @@ sub XiaomiSmartHome_Device_Define($$) {
 
     Log3 $name, 4, $iodev . ": DEV_Define> " . $name . ": defined as ". $hash->{MODEL};
     $attr{$name}{room} = "MiSmartHome" if( !defined( $attr{$name}{room} ) );
-    if( $type eq 'motion'||'sensor_motion.aq2') {
+    if( $type =~ /motion/) {
 		$attr{$name}{devStateIcon}  = 'motion:motion_detector@red off:motion_detector@green no_motion:motion_detector@green' if( !defined( $attr{$name}{devStateIcon} ) );
 	}
-	elsif ( $type eq 'magnet') {
+	elsif ( $type =~ /magnet/) {
 		$attr{$name}{devStateIcon}  = 'open:fts_door_open@red close:fts_door@green' if( !defined( $attr{$name}{devStateIcon} ) );
 	}
 	elsif ( $type eq 'sensor_ht') {
