@@ -49,7 +49,7 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "1.07";
+my $version = "1.08";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -101,7 +101,8 @@ sub XiaomiSmartHome_Initialize($) {
 						"15:XiaomiSmartHome_Device"     => "^.+86plug",
 						"16:XiaomiSmartHome_Device"     => "^.+natgas",
 						"17:XiaomiSmartHome_Device"     => "^.+smoke",
-						"18:XiaomiSmartHome_Device"     => "^.+weather.v1"};
+						"18:XiaomiSmartHome_Device"     => "^.+weather.v1",
+						"19:XiaomiSmartHome_Device"     => "^.+sensor_motion.aq2"};
 	FHEM_colorpickerInit();
 }
 #####################################
@@ -859,7 +860,9 @@ sub XiaomiSmartHome_updateAllReadings($)
 	<ul>
 		<li>magnet: Window/Door magnetic sensor</li>
 		<li>motion: Human body motion sensor</li>
-		<li>sensor_ht: Temperatur and humidity sensor</li>
+		<li>sensor_motion.aq2: Aqara Human body motion sensor with lux readings</li>
+		<li>sensor_ht: Temperature and humidity sensor</li>
+		<li>weather.v1: Aqara Temperature, pressure and humidity sensor</li>
 		<li>switch: Wireless sensor switch</li>
 		<li>plug & 86plug: Smart socket</li>
 		<li>cube: Cube sensor</li>
@@ -908,7 +911,7 @@ sub XiaomiSmartHome_updateAllReadings($)
 	<ul>
 		<li>motionOffTimer:  (only motionsensor)
 		<br/>You can set a motion Off Timer Attribut on the motion sensor device. You can set 1, 5 or 10 seconds after
-		<br/>the motion sensors will automatically set to off.
+		<br/>the motion sensors will automatically set to off. MotionOffTimer is set to 5 by default.
 		<br/>Background: The motionsensors does not send off immediately.
 		<br/>The Motionsensor send a no_motion after 120, 180, 300, 600, 1200 seconds no motion is detected.</li>
 		<li>Power: (only smart soket) on off switch a plug on or off</li>

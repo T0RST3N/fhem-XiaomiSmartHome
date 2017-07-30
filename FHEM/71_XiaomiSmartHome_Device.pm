@@ -25,7 +25,7 @@ package main;
 use strict;
 use warnings;
 
-my $version = "1.07";
+my $version = "1.08";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
@@ -35,7 +35,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
   
-  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1";
+  $hash->{Match}     = "^.+magnet|motion|sensor_ht|switch|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_motion.aq2";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -63,7 +63,7 @@ sub XiaomiSmartHome_Device_Set($@)
 	return "\"set $name\" needs at least one argument" unless(defined($cmd));
 	
 	my $setlist = "";
-	$setlist .= "motionOffTimer:1,5,10 " if ($hash->{MODEL} eq 'motion');
+	$setlist .= "motionOffTimer:1,5,10 " if ($hash->{MODEL} eq 'motion'||'sensor_motion.aq2');
 	#$setlist = "open:noArg close:noArg " if ($hash->{MODEL} eq 'magnet');
 	$setlist .= "power:on,off " if ($hash->{MODEL} eq 'plug');
 	$setlist .= "power:on,off " if ($hash->{MODEL} eq '86plug');
@@ -207,7 +207,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 	if (defined $data->{status}){
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
 		readingsBulkUpdate($hash, "state", "$data->{status}", 1 );
-		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'){
+		if ($data->{status} eq 'motion' && $hash->{MODEL} eq 'motion'||'sensor_motion.aq2'){
 			readingsBulkUpdate($hash, "no_motion", "0", 1 );
 			}		
 		if ($data->{status} eq 'close' && $hash->{MODEL} eq 'magnet'){
@@ -244,6 +244,11 @@ sub XiaomiSmartHome_Device_Read($$$){
 		$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
 		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;
 		readingsBulkUpdate($hash, "pressure", "$pres", 1 );
+		}
+	if (defined $data->{lux}){
+		my $lux = $data->{lux};
+		Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Illuminance: " . $lux;
+		readingsBulkUpdate($hash, "lux", "$lux", 1 );
 		}
 	#86sw1 + 86sw2 + ctrl_neutral1 + ctrl_neutral2 start
 	if (defined $data->{channel_0}){
@@ -357,7 +362,7 @@ sub XiaomiSmartHome_Device_update($){
   my $model = $hash->{MODEL};
   my $name = $hash->{NAME};
   my $value_fn = AttrVal( $name, "valueFn", "" );
-  #my $mot =  AttrVal( $name, "motionOffTimer", "" );
+  #my $mot =  AttrVal( $name, "motionOffTimer", "5" );
   my $mot =  $hash->{READINGS}{motionOffTimer}{VAL} if ($hash->{READINGS}{motionOffTimer});
   if( $value_fn =~ m/^{.*}$/s ) {
 
@@ -367,7 +372,7 @@ sub XiaomiSmartHome_Device_update($){
     Log3 $name, 3, $name .": DEV_Update valueFn: ". $@ if($@);
     return undef if( !defined($value_fn) );
   }
-  if( $model eq 'motion') {
+  if( $model eq 'motion'||'sensor_motion.aq2') {
 	XiaomiSmartHome_Device_mot($hash, $hash->{READINGS}{motionOffTimer}{VAL}) if( $hash->{READINGS}{motionOffTimer});
 	}
   # Update delete old reading Voltage
@@ -402,7 +407,7 @@ sub XiaomiSmartHome_Device_Define($$) {
 
     Log3 $name, 4, $iodev . ": DEV_Define> " . $name . ": defined as ". $hash->{MODEL};
     $attr{$name}{room} = "MiSmartHome" if( !defined( $attr{$name}{room} ) );
-    if( $type eq 'motion') {
+    if( $type eq 'motion'||'sensor_motion.aq2') {
 		$attr{$name}{devStateIcon}  = 'motion:motion_detector@red off:motion_detector@green no_motion:motion_detector@green' if( !defined( $attr{$name}{devStateIcon} ) );
 	}
 	elsif ( $type eq 'magnet') {
@@ -568,7 +573,9 @@ sub XiaomiSmartHome_Device_Undef($)
 	<ul>
 		<li>magnet: Magnetischer Fenster/T&uumlr Sensor</li>
 		<li>motion: Bewegungsmelder</li>
+		<li>sensor_motion.aq2: Aqara Bewegungsmelder mit lux-Messung</li>
 		<li>sensor_ht: Temperatur und Luftdruck</li>
+		<li>weather.v1: Aqara Temperatur, Luftdruck und Feuchtigkeit</li>
 		<li>switch: Funkschalter</li>
 		<li>plug: Schaltbare Funksteckdose</li>
 		<li>cube: W&uumlrfel Sensor</li>
@@ -600,7 +607,7 @@ sub XiaomiSmartHome_Device_Undef($)
 	<ul>
 		<li>motionOffTimer:  (nur Bewegungsmelder)
 		<br/>Durch setzen des Parameters ist es m&oumlglich das das Reading des Bewegungsmelder nach 1, 5 oder 10 Sekunden
-		<br/>automatisch wieder auf off gestellt wird.
+		<br/>automatisch wieder auf off gestellt wird. Standardmäßig ist dieser Wert auf 5 gestellt, sodass der Sensor alle 5 Sekunden auf eine erneute Bewegung reagiert.
 		<br/>Hintergrund: Der Bewegungsmelder sendet kein selber kein off.
 		<br/>Der Bewegungsmelder sendet no_motion nach 120, 180, 300, 600, 1200 Sekunden wenn keine Bewegung festgestellt wurde.</li>
 		<li>Power: (nur Funksteckdose) on off Funktsteckdose ein oder ausschalten</li>
