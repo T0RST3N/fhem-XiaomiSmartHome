@@ -1,6 +1,6 @@
 # fhem-XiaomiSmartHome Gateway
-With this module, the XiaomiGateway is bound to Fhem. The module listens for multicast messages from the gateway. 
-Changing and switching the led of the gateway and changing ringtone and volume of the gateway is also possible
+With this module, the Xiaomi Smarthome Gateway is bound to FHEM. The module listens for multicast messages from the gateway. 
+Changing and switching the LED from the gateway and changing ringtone and volume of the gateway is also possible
 
 * Please read the Wiki !! you need to install some Perl modules.
 * https://github.com/T0RST3N/fhem-XiaomiSmartHome/wiki
@@ -33,5 +33,5 @@ Changing and switching the led of the gateway and changing ringtone and volume o
 * * 64: arlarm sensitivity
 * * 32768: ICC communication failure
 
-# A big ThankYOU to my Supporters
+# A BIG ThankYOU to my Supporters
 * StefanB from Coburg
