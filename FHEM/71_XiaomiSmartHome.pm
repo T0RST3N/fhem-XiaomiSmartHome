@@ -40,6 +40,8 @@ eval "use Crypt::CBC";
 return "\nERROR: Please install Crypt::CBC" if($@);
 eval "use Net::Ping";
 return "\nERROR: Please install Net::Ping" if($@);
+eval "use Math::Round";
+return "\nERROR: Please install libmath-round-perl" if($@);
 
 use Color;
 use SetExtensions;
@@ -49,7 +51,7 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "1.08";
+my $version = "1.12";
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -64,6 +66,7 @@ my %sets = (
   "volume:slider,1,1,100" => 1,
   "ringtone:0,1,2,3,4,5,6,7,8,13,21,22,23,24,25,26,27,28,29,10000,10001" => 1,
   "ringvol" => 2,
+  "learn" => 0,
 );
 
 
@@ -102,7 +105,8 @@ sub XiaomiSmartHome_Initialize($) {
 						"16:XiaomiSmartHome_Device"     => "^.+natgas",
 						"17:XiaomiSmartHome_Device"     => "^.+smoke",
 						"18:XiaomiSmartHome_Device"     => "^.+weather.v1",
-						"19:XiaomiSmartHome_Device"     => "^.+sensor_motion.aq2"};
+						"19:XiaomiSmartHome_Device"     => "^.+sensor_motion.aq2",
+						"20:XiaomiSmartHome_Device"     => "^.+sensor_wleak.aq1"};					
 	FHEM_colorpickerInit();
 }
 #####################################
@@ -344,7 +348,7 @@ sub XiaomiSmartHome_Define($$) {
 		eval {
 			$GATEWAY_IP = inet_ntoa(inet_aton($hash->{GATEWAY})) ;
 			$hash->{GATEWAY_IP} = $GATEWAY_IP;
-			Log3 $name, 1, "$name: Define> Set GATEWAYs IP: " .  $GATEWAY_IP;
+			Log3 $name, 5, "$name: Define> Set GATEWAYs IP: " .  $GATEWAY_IP;
 			};
 		if ($@) {
 			Log3 $name, 1, "$name: Define> Error $@\n";
@@ -474,6 +478,11 @@ sub XiaomiSmartHome_Write($@)
 			if ($cmd eq 'level')
 				{
 				$msg  = '{"cmd":"write","model":"curtain","sid":"' . $iohash->{SID} . '","data":"{\"curtain_level\":\"' . $val . '\",\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
+				}
+			if ($cmd eq 'learn')
+				{
+				my $t = '"yes"';
+				$msg  = '{"cmd":"write","model":"gateway","sid":"' . $hash->{SID} . '","data":"{\"join_permission\":' . $t . ',\"key\":\"'. XiaomiSmartHome_EncryptKey($hash) .'\"}" }';
 				}
 			}
 		}
@@ -620,6 +629,10 @@ sub XiaomiSmartHome_Set($@)
 			}
 		readingsEndUpdate( $hash, 1 );
 	}
+	elsif($cmd eq "learn")
+	{
+		XiaomiSmartHome_Write($hash,'learn', 1);
+	}
 	elsif($cmd eq "pct")
 	{
 		my $ownName = $hash->{NAME};
@@ -710,7 +723,7 @@ sub XiaomiSmartHome_connect($)
 	$sock->setsockopt(SOL_SOCKET, SO_RCVTIMEO, pack('l!l!', 30, 0))   or die "setsockopt: $!";
 	if ($sock)
 	{
-		Log3 $name, 3, "$name: connect> Connected";
+		Log3 $name, 4, "$name: connect> Connected";
 		$sock->mcast_add('224.0.0.50', $hash->{fhemIP} ) || die "Couldn't set group: $!\n"; #$hash->{fhemIP}
 		$sock->mcast_ttl(32);
 		$sock->mcast_loopback(1);
@@ -748,7 +761,7 @@ sub XiaomiSmartHome_disconnect($)
     }
 
     return if (!$hash->{CD});
-    Log3 $name, 3, "$name: disconnect> disconnecting";
+    Log3 $name, 1, "$name: disconnect> disconnecting";
 	
 	close($hash->{CD}) if($hash->{CD});
     delete($hash->{FD});
@@ -872,6 +885,7 @@ sub XiaomiSmartHome_updateAllReadings($)
 		<li>ctrl_neutral2: Double bond ignition switch</li>
 		<li>rgbw_light: Smart lights (report only)</li>
 		<li>curtain: Curtain (Control only if device has reporte curtain_level)</li>
+		<li>water: water detector</li>
 		<li>smoke: smoke alarm detector</li>
 		<ul>
 			<li>0: disarm</li>
@@ -970,6 +984,7 @@ sub XiaomiSmartHome_updateAllReadings($)
 		<li>ctrl_neutral2: Doppelter Wandschalter schaltbar</li>
 		<li>rgbw_light: RBGW Lampe (nur Anzeige)</li>
 		<li>curtain: Vorhangmotor (ohne das das device den curtain_level gemeldet hat ist ein steuern nicht möglich)</li>
+		<li>water: Wasser Sensor</li>
 		<li>smoke: Rauchmelder</li>
 		<ul>
 			<li>0: disarm</li>
