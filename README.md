@@ -20,6 +20,7 @@ Changing and switching the LED from the gateway and changing ringtone and volume
 * ctrl_neutral2: Double bond ignition switch
 * rgbw_light: Smart lights (report only)
 * curtain: Curtain (Control only if device has reporte curtain_level)
+* wleak: Watersensor
 * smoke: smoke alarm detector
 * * 0: disarm
 * * 1: arlarm
