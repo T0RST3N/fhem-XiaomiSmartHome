@@ -26,7 +26,7 @@ use strict;
 use warnings;
 use Math::Round qw/nearest/;
 
-my $version = "1.14";
+my $version = "1.15";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
@@ -209,7 +209,6 @@ sub XiaomiSmartHome_Device_Read($$$){
 		return;
 	}
 	readingsBeginUpdate( $hash );
-	if ($cmd ne 'heartbeat'){
 		if (defined $data->{status}){
 			Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Status: " . $data->{status};
 			readingsBulkUpdate($hash, "state", "$data->{status}", 1 );
@@ -341,10 +340,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 			readingsBulkUpdate($hash, "arlarm", "$data->{curtain_level}", 1 );
 			}
 		#curtain end
-		}
-	if ($cmd eq 'heartbeat'){
-		readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
-		}
+
 
 	readingsEndUpdate( $hash, 1 );
 	XiaomiSmartHome_Device_update($hash);
