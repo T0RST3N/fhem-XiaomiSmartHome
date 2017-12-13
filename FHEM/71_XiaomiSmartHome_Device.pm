@@ -26,7 +26,7 @@ use strict;
 use warnings;
 
 
-my $version = "1.18";
+my $version = "1.19";
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
@@ -243,24 +243,30 @@ sub XiaomiSmartHome_Device_Read($$$){
 			readingsBulkUpdate($hash, "battery_level", $bat, 1 );
 			}
 		if (defined $data->{temperature}){
-			my $temp = sprintf( "%#.4d", $data->{temperature});
-			$temp =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
-			$temp = XiaomiSmartHome_round($temp, $XMIround_tmp, $name );
-			Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp . " Round: " . $XMIround_tmp;
-			readingsBulkUpdate($hash, "temperature", "$temp", 1 );
+			if ($data->{temperature} ne "10000"){
+				my $temp = sprintf( "%#.4d", $data->{temperature});
+				$temp =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
+				$temp = XiaomiSmartHome_round($temp, $XMIround_tmp, $name );
+				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Temperature: " . $temp . " Round: " . $XMIround_tmp;
+				readingsBulkUpdate($hash, "temperature", "$temp", 1 );
+				}
 			}
 		if (defined $data->{humidity}){
-			my $hum = $data->{humidity};
-			$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
-			$hum = XiaomiSmartHome_round($hum, $XMIround_hum, $name );
-			Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum . " Round: " . $XMIround_hum;
-			readingsBulkUpdate($hash, "humidity", "$hum", 1 );
+			if ($data->{humidity} ne "0"){
+				my $hum = $data->{humidity};
+				$hum =~ s/(^[-+]?\d+?(?=(?>(?:\d{2})+)(?!\d))|\G\d{2}(?=\d))/$1./g;
+				$hum = XiaomiSmartHome_round($hum, $XMIround_hum, $name );
+				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Humidity: " . $hum . " Round: " . $XMIround_hum;
+				readingsBulkUpdate($hash, "humidity", "$hum", 1 );
+				}
 			}
 		if (defined $data->{pressure}){
-			my $pres = $data->{pressure};
-			$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
-			Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;
-			readingsBulkUpdate($hash, "pressure", "$pres", 1 );
+			if ($data->{pressure} ne "0"){
+				my $pres = $data->{pressure};
+				$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
+				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;
+				readingsBulkUpdate($hash, "pressure", "$pres", 1 );
+				}
 			}
 		if (defined $data->{lux}){
 			my $lux = $data->{lux};
