@@ -24,10 +24,10 @@ package main;
 
 use strict;
 use warnings;
-use Math::Round qw/nearest/;
 
 
-my $version = "1.19";
+
+my $version = "1.20";
 
 sub XiaomiSmartHome_Device_updateSReading($);
 
@@ -512,6 +512,7 @@ sub XiaomiSmartHome_round {
 =pod
 =item device
 =item summary Module to control XiaomiSmartHome Gateway
+=item summary_DE Modul zum steuern des  XiaomiSmartHome Gateway
 
 
 =begin html
@@ -550,15 +551,35 @@ sub XiaomiSmartHome_round {
 	<ul>
 		<li>magnet: Window/Door magnetic sensor</li>
 		<li>motion: Human body motion sensor</li>
-		<li>sensor_ht: Temperatur and humidity sensor</li>
+		<li>sensor_motion.aq2: Aqara Human body motion sensor with lux readings</li>
+		<li>sensor_ht: Temperature and humidity sensor</li>
+		<li>weather.v1: Aqara Temperature, pressure and humidity sensor</li>
 		<li>switch: Wireless sensor switch</li>
-		<li>plug: Smart socket</li>
+		<li>plug & 86plug: Smart socket</li>
 		<li>cube: Cube sensor</li>
 		<li>86sw1: Wireless switch single</li>
 		<li>86sw2: Wireless switch double</li>
 		<li>ctrl_neutral1: Single bond ignition switch</li>
 		<li>ctrl_neutral2: Double bond ignition switch</li>
 		<li>rgbw_light: Smart lights (report only)</li>
+		<li>curtain: Curtain (Control only if device has reporte curtain_level)</li>
+		<li>water: water detector</li>
+		<li>smoke: smoke alarm detector</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>8: battery arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
+		<li>gas: gas alarm detector</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>2: analog arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
 	</ul>
 	<br/>
 	<b>Heartbeat</b>
@@ -573,16 +594,18 @@ sub XiaomiSmartHome_round {
 		<li>password: without password no write to the gateway is possible. Use the MI APP to find the password</li>
 		<li>RGB(Colorpicker): set the color</li>
 		<li>PCT(Slider): set the brightness in percent</li>
+		<li>intervals: set the gateway to on for an time eg. set intervals 07:00-08:00</li>
 		<li>ringtone: set the ringtone 0-8,13,21-29,10001-.. | 10000 = off</li>
 		<li>volume: set the volume 1-100, (100 is very loud)</li>
 		<li>ringvol: set ringtone and volume in on step e.g. set [GWNAME] ringvol 21 10</li>
+		<li>learn: set the gateway in learningmode to learn new sensors now push the button from the new sensor</li>
 	</ul>
 	<br/>
 	<b>Set: Devices</b>
 	<ul>
 		<li>motionOffTimer:  (only motionsensor)
 		<br/>You can set a motion Off Timer Attribut on the motion sensor device. You can set 1, 5 or 10 seconds after
-		<br/>the motion sensors will automatically set to off.
+		<br/>the motion sensors will automatically set to off. MotionOffTimer is set to 5 by default.
 		<br/>Background: The motionsensors does not send off immediately.
 		<br/>The Motionsensor send a no_motion after 120, 180, 300, 600, 1200 seconds no motion is detected.</li>
 		<li>Power: (only smart soket) on off switch a plug on or off</li>
@@ -596,7 +619,7 @@ sub XiaomiSmartHome_round {
 
 =begin html_DE
 
-<a name="XiaomiSmartHome"></a>
+<a name="XiaomiSmartHome_Device"></a>
 <h3>XiaomiSmartHome</h3>
 <ul>
     <i>XiaomiSmartHome</i> Steuern des XiaomiSmartHome Gateway und deren verbundener Sensoren. 
@@ -631,17 +654,33 @@ sub XiaomiSmartHome_round {
 	<ul>
 		<li>magnet: Magnetischer Fenster/T&uumlr Sensor</li>
 		<li>motion: Bewegungsmelder</li>
-		<li>sensor_motion.aq2: Aqara Bewegungsmelder mit lux-Messung</li>
 		<li>sensor_ht: Temperatur und Luftdruck</li>
-		<li>weather.v1: Aqara Temperatur, Luftdruck und Feuchtigkeit</li>
 		<li>switch: Funkschalter</li>
-		<li>plug: Schaltbare Funksteckdose</li>
+		<li>plug & 86plug: Schaltbare Funksteckdose</li>
 		<li>cube: W&uumlrfel Sensor</li>
 		<li>86sw1: Einfacher Wandfunkschalter</li>
 		<li>86sw2: Wandfunkschalter doppelt</li>
 		<li>ctrl_neutral1: Einfacher Wandschalter schaltbar</li>
 		<li>ctrl_neutral2: Doppelter Wandschalter schaltbar</li>
 		<li>rgbw_light: RBGW Lampe (nur Anzeige)</li>
+		<li>curtain: Vorhangmotor (ohne das das device den curtain_level gemeldet hat ist ein steuern nicht möglich)</li>
+		<li>water: Wasser Sensor</li>
+		<li>smoke: Rauchmelder</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>8: battery arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
+		<li>gas: Gasmelder</li>
+		<ul>
+			<li>0: disarm</li>
+			<li>1: arlarm</li>
+			<li>2: analog arlarm</li>
+			<li>64: arlarm sensitivity</li>
+			<li>32768: ICC communication failure</li>
+		</ul>
 	</ul>
 	<br/>
 	<b>Heartbeat</b>
@@ -656,16 +695,18 @@ sub XiaomiSmartHome_round {
 		<li>password: Ohne Passwort ist ein Schalten des GATEWAY nicht m&oumlglich. Das Passwort findet man in der MI APP</li>
 		<li>RGB(Colorpicker): Einstellen der LED Farbe des Gateways</li>
 		<li>PCT(Slider): Einstellen der Helligkeit des Gateways</li>
+		<li>intervals: Einschalten des gateway für einen Zeitraum zb. set intervals 07:00-08:00</li>
 		<li>ringtone: Wiedergeben eines Arlarmtones 0-8,13,21-29,10001-.. Benutzerdefinierte| 10000 = aus</li>
 		<li>volume: Einstellen der Lautst&aumlrke des Arlarmtones 1-100, (100 ist sehr laut!)</li>
-		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges verändern der Lautst&aumlrke set [GWNAME] ringvol 21 10</li>
+		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges ver&aumlndern der Lautst&aumlrke set [GWNAME] ringvol 21 10</li>
+		<li>learn: Anlernen neuer Sensoren, nach dem Set an dem neuem Sensor den Button dr&uumlcken</li>
 	</ul>
 	<br/>
 	<b>Set: Devices</b>
 	<ul>
 		<li>motionOffTimer:  (nur Bewegungsmelder)
 		<br/>Durch setzen des Parameters ist es m&oumlglich das das Reading des Bewegungsmelder nach 1, 5 oder 10 Sekunden
-		<br/>automatisch wieder auf off gestellt wird. Standardmäßig ist dieser Wert auf 5 gestellt, sodass der Sensor alle 5 Sekunden auf eine erneute Bewegung reagiert.
+		<br/>automatisch wieder auf off gestellt wird.
 		<br/>Hintergrund: Der Bewegungsmelder sendet kein selber kein off.
 		<br/>Der Bewegungsmelder sendet no_motion nach 120, 180, 300, 600, 1200 Sekunden wenn keine Bewegung festgestellt wurde.</li>
 		<li>Power: (nur Funksteckdose) on off Funktsteckdose ein oder ausschalten</li>
