@@ -43,6 +43,7 @@ return "\nERROR: Please install Net::Ping" if($@);
 eval "use Math::Round";
 return "\nERROR: Please install libmath-round-perl" if($@);
 
+
 use Color;
 use SetExtensions;
 
@@ -51,7 +52,9 @@ use SetExtensions;
 sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
-my $version = "1.12";
+
+my $version = "1.19";
+
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
 
@@ -114,10 +117,13 @@ sub XiaomiSmartHome_Read($) {
     my ($hash) = @_;
     my $name = $hash->{NAME};
 	my $self = {}; # my new hash
-	my $new_hash = {};
 	
 	Log3 $name, 5, "$name: Read> Read start";
-    my $buf = "";
+    if ( ! $hash->{SID} ){
+		Log3 $name, 3, "$name: Read> No SID, Stop Read";
+		return;
+	}
+	my $buf = "";
     my $ret = sysread($hash->{CD}, $buf, 1024);
     if (!defined($ret) || $ret <= 0)
     {
