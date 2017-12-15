@@ -24,9 +24,11 @@ package main;
 
 use strict;
 use warnings;
+use Math::Round qw/nearest/;
 
 
 my $version = "1.19";
+
 sub XiaomiSmartHome_Device_updateSReading($);
 
 
@@ -44,9 +46,11 @@ sub XiaomiSmartHome_Device_Initialize($)
 
   $hash->{AttrList}  = "IODev follow-on-for-timer:1,0 follow-on-timer ".
                        "do_not_notify:1,0 ignore:1,0 dummy:1,0 showtime:1,0 valueFn:textField-long ".
+
 					   "rnd_tmp:1,2,3 ".
 					   "rnd_hum:1,2,3 ".
 					   "rnd_bat:1,2,3 ".
+
                        $readingFnAttributes ;				
 }
 #####################################
@@ -194,9 +198,11 @@ sub XiaomiSmartHome_Device_on_timeout($){
 #####################################
 sub XiaomiSmartHome_Device_Read($$$){
 	my ($hash, $msg, $name) = @_;
+
 	my $XMIround_tmp = AttrVal( $hash->{NAME}, "rnd_tmp", "2" );
 	my $XMIround_hum = AttrVal( $hash->{NAME}, "rnd_hum", "2" );
 	my $XMIround_bat = AttrVal( $hash->{NAME}, "rnd_bat", "1" );	
+
 	my $decoded = eval{decode_json($msg)};
 	if ($@) {
 		Log3 $name, 1, "$name: DEV_Read> Error while request: $@";
@@ -222,6 +228,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 				readingsBulkUpdate($hash, "no_close", "0", 1 );
 				}
 			}
+
 		if (defined $data->{no_motion}){
 			Log3 $name, 4, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " NO_motion: " . $data->{no_motion};
 			readingsBulkUpdate($hash, "no_motion", "$data->{no_motion}", 1 );
