@@ -40,8 +40,7 @@ eval "use Crypt::CBC";
 return "\nERROR: Please install Crypt::CBC" if($@);
 eval "use Net::Ping";
 return "\nERROR: Please install Net::Ping" if($@);
-eval "use Math::Round";
-return "\nERROR: Please install libmath-round-perl" if($@);
+
 
 
 use Color;
@@ -53,7 +52,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.19";
+my $version = "1.20";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -922,9 +921,11 @@ sub XiaomiSmartHome_updateAllReadings($)
 		<li>password: without password no write to the gateway is possible. Use the MI APP to find the password</li>
 		<li>RGB(Colorpicker): set the color</li>
 		<li>PCT(Slider): set the brightness in percent</li>
+		<li>intervals: set the gateway to on for an time eg. set intervals 07:00-08:00</li>
 		<li>ringtone: set the ringtone 0-8,13,21-29,10001-.. | 10000 = off</li>
 		<li>volume: set the volume 1-100, (100 is very loud)</li>
 		<li>ringvol: set ringtone and volume in on step e.g. set [GWNAME] ringvol 21 10</li>
+		<li>learn: set the gateway in learningmode to learn new sensors now push the button from the new sensor</li>
 	</ul>
 	<br/>
 	<b>Set: Devices</b>
@@ -1021,9 +1022,11 @@ sub XiaomiSmartHome_updateAllReadings($)
 		<li>password: Ohne Passwort ist ein Schalten des GATEWAY nicht m&oumlglich. Das Passwort findet man in der MI APP</li>
 		<li>RGB(Colorpicker): Einstellen der LED Farbe des Gateways</li>
 		<li>PCT(Slider): Einstellen der Helligkeit des Gateways</li>
+		<li>intervals: Einschalten des gateway für einen Zeitraum zb. set intervals 07:00-08:00</li>
 		<li>ringtone: Wiedergeben eines Arlarmtones 0-8,13,21-29,10001-.. Benutzerdefinierte| 10000 = aus</li>
 		<li>volume: Einstellen der Lautst&aumlrke des Arlarmtones 1-100, (100 ist sehr laut!)</li>
-		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges verändern der Lautst&aumlrke set [GWNAME] ringvol 21 10</li>
+		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges ver&aumlndern der Lautst&aumlrke set [GWNAME] ringvol 21 10</li>
+		<li>learn: Anlernen neuer Sensoren, nach dem Set an dem neuem Sensor den Button dr&uumlcken</li>
 	</ul>
 	<br/>
 	<b>Set: Devices</b>
