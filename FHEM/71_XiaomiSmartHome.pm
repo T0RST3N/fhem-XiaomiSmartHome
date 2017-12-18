@@ -52,7 +52,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.20";
+my $version = "1.21";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -146,8 +146,16 @@ sub XiaomiSmartHome_Read($) {
         Log3 $name, 5, "$name: Read> " .  $buf;
 		my $rsid = $decoded->{'sid'};
 		if ($decoded->{'cmd'} eq 'read_ack' || $decoded->{'cmd'} eq 'report' && $decoded->{'model'} ne 'gateway'|| $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} ne 'gateway' || $decoded->{'cmd'} eq 'write_ack' && $decoded->{'model'} ne 'gateway') {
-			Log3 $name, 5, "$name: Read> Dispatch " . $buf;
-			Dispatch($hash, $buf, undef);
+			if ( $modules{XiaomiSmartHome_Device}{defptr}{$rsid}->{SID} = $rsid ){
+				Log3 $name, 5, "$name: Read> Dispatch " . $buf;
+				my $devhash = $modules{XiaomiSmartHome_Device}{defptr}{$rsid}->{IODev};
+				Dispatch($devhash, $buf, undef);
+			}
+			else {
+				Log3 $name, 5, "$name: Read> Dispatch " . $buf;
+				Dispatch($hash, $buf, undef);
+			
+			}
 		}
 		elsif ( $modules{XiaomiSmartHome}{defptr}{$rsid}->{SID} ne $hash->{SID} ){
 			$self = $modules{XiaomiSmartHome}{defptr}{$rsid};
@@ -244,11 +252,14 @@ sub XiaomiSmartHome_Reading ($@) {
 					Log3 $name, 1, "$name: Reading> Error while request: $@";
 					return;
 				}
+			my $all_sensors = "";
 			foreach my $sensor (@sensors)	
 				{
 				Log3 $name, 4, "$name: Reading> PushRead:" . $sensor;
 				XiaomiSmartHome_Write($hash, 'read',  $sensor );
+				$all_sensors = $all_sensors . $sensor . ",";
 				}
+			$hash->{helper}{sensors} = $all_sensors;
 			return;
 		}
 	}

@@ -27,7 +27,7 @@ use warnings;
 
 
 
-my $version = "1.20";
+my $version = "1.21";
 
 sub XiaomiSmartHome_Device_updateSReading($);
 
@@ -44,13 +44,12 @@ sub XiaomiSmartHome_Device_Initialize($)
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
   $hash->{ParseFn}   = "XiaomiSmartHome_Device_Parse";
 
-  $hash->{AttrList}  = "IODev follow-on-for-timer:1,0 follow-on-timer ".
+  $hash->{AttrList}  = "follow-on-for-timer:1,0 follow-on-timer ".
                        "do_not_notify:1,0 ignore:1,0 dummy:1,0 showtime:1,0 valueFn:textField-long ".
-
-					   "rnd_tmp:1,2,3 ".
-					   "rnd_hum:1,2,3 ".
-					   "rnd_bat:1,2,3 ".
-
+					   "rnd_tmp:0,1,2,3 ".
+					   "rnd_hum:0,1,2,3 ".
+					   "rnd_bat:0,1,2,3 ".
+					   "rnd_pres:0,1,2,3 ".
                        $readingFnAttributes ;				
 }
 #####################################
@@ -202,6 +201,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 	my $XMIround_tmp = AttrVal( $hash->{NAME}, "rnd_tmp", "2" );
 	my $XMIround_hum = AttrVal( $hash->{NAME}, "rnd_hum", "2" );
 	my $XMIround_bat = AttrVal( $hash->{NAME}, "rnd_bat", "1" );	
+	my $XMIround_pres = AttrVal( $hash->{NAME}, "rnd_pres", "2" );
 
 	my $decoded = eval{decode_json($msg)};
 	if ($@) {
@@ -247,7 +247,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 					readingsBulkUpdate($hash, "battery", "ok", 1 )
 				}
 			$bat = XiaomiSmartHome_round($bat, $XMIround_bat, $name );
-			readingsBulkUpdate($hash, "battery_level", $bat, 1 );
+			readingsBulkUpdate($hash, "batteryLevel", $bat, 1 );
 			}
 		if (defined $data->{temperature}){
 			if ($data->{temperature} ne "10000"){
@@ -271,7 +271,8 @@ sub XiaomiSmartHome_Device_Read($$$){
 			if ($data->{pressure} ne "0"){
 				my $pres = $data->{pressure};
 				$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
-				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;
+				$pres = XiaomiSmartHome_round($pres, $XMIround_pres, $name );
+				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres . " Round: " . $XMIround_pres;
 				readingsBulkUpdate($hash, "pressure", "$pres", 1 );
 				}
 			}
@@ -418,7 +419,8 @@ sub XiaomiSmartHome_Device_update($){
   # Update delete old reading voltage & batterystate
   CommandDeleteReading( undef, "$name voltage" ) if(defined(ReadingsVal($name,"voltage",undef)));
   CommandDeleteReading( undef, "$name batterystate" ) if(defined(ReadingsVal($name,"batterystate",undef)));
-    CommandDeleteReading( undef, "$name round" ) if(defined(ReadingsVal($name,"round",undef)));
+  CommandDeleteReading( undef, "$name round" ) if(defined(ReadingsVal($name,"round",undef)));
+  CommandDeleteReading( undef, "$name battery_level" ) if(defined(ReadingsVal($name,"battery_level",undef)));
 }
 #####################################
  
