@@ -729,7 +729,7 @@ sub XiaomiSmartHome_connect($)
 	if ($sock)
 	{
 		Log3 $name, 4, "$name: connect> Connected";
-		$sock->mcast_add('224.0.0.50', $hash->{fhemIP} ) || die "Couldn't set group: $!\n"; #$hash->{fhemIP}
+		$sock->mcast_add('224.0.0.50', $hash->{FHEMIP} ) || die "Couldn't set group: $!\n"; #$hash->{FHEMIP}
 		$sock->mcast_ttl(32);
 		$sock->mcast_loopback(1);
 		$hash->{helper}{ConnectionState} = "Connected";
