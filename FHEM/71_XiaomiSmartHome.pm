@@ -724,7 +724,7 @@ sub XiaomiSmartHome_connect($)
 		}
     XiaomiSmartHome_getGatewaySID($hash);
 	my $timeout = $hash->{TIMEOUT} ? $hash->{TIMEOUT} : 3;
-	my $sock = IO::Socket::Multicast->new( Proto     => 'udp', LocalPort =>'9898', ReuseAddr => 1, Timeout => $timeout) or die "Creating socket: $!\n";
+	my $sock = IO::Socket::Multicast->new( Proto     => 'udp', LocalPort =>'9898', ReusePort => 1, ReuseAddr => 1, Timeout => $timeout) or die "Creating socket: $!\n";
 	$sock->setsockopt(SOL_SOCKET, SO_RCVTIMEO, pack('l!l!', 30, 0))   or die "setsockopt: $!";
 	if ($sock)
 	{
