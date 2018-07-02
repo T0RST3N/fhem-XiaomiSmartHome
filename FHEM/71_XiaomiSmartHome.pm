@@ -51,7 +51,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.30";
+my $version = "1.31";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -160,14 +160,15 @@ sub XiaomiSmartHome_Read($) {
 			}
 			if ($modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} eq $hash->{NAME}) {
 				Log3 $name, 5, "$name: Read> XiaomiSmartHome_Device known! " . "SID: " . $rsid . " " . $modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} . " " . $hash->{NAME};
+				Log3 $name, 5, "$name: Read> Dispatching " . $buf . " " . $hash->{NAME};
+				Dispatch($hash, $buf, undef);
 			}
 			elsif ($modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} ne $hash->{NAME}) {
 				Log3 $name, 5, "$name: Read> Wrong Modul HASH Trying to find the right one " . $modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} . " <> " . $hash->{NAME} ;
 				$hash = $modules{XiaomiSmartHome_Device}{defptr}{$rsid}->{IODev};
-				Log3 $name, 5, "$name: Read> Using this GW " . $hash->{NAME};
+				Log3 $name, 5, "$name: Read> Using this GW " . $hash->{NAME} . " no Dispatching!";
 				}
-			Log3 $name, 5, "$name: Read> Dispatching " . $buf . " " . $hash->{NAME};
-			Dispatch($hash, $buf, undef);
+
 			}
 		elsif (!$modules{XiaomiSmartHome}{defptr}{$rsid}){
 				Log3 $name, 1, "$name: Read> GW not defined " . $buf;
