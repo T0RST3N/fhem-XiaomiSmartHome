@@ -27,7 +27,7 @@ use warnings;
 
 
 
-my $version = "1.20";
+my $version = "1.30";
 
 sub XiaomiSmartHome_Device_updateSReading($);
 
@@ -37,21 +37,20 @@ sub XiaomiSmartHome_Device_updateSReading($);
 sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
-  
-  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|cube|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_wleak.aq1";
+
+  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|.*cube.*|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_wleak.aq1";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
   $hash->{ParseFn}   = "XiaomiSmartHome_Device_Parse";
 
-  $hash->{AttrList}  = "IODev follow-on-for-timer:1,0 follow-on-timer ".
+  $hash->{AttrList}  = "follow-on-for-timer:1,0 follow-on-timer ".
                        "do_not_notify:1,0 ignore:1,0 dummy:1,0 showtime:1,0 valueFn:textField-long ".
-
-					   "rnd_tmp:1,2,3 ".
-					   "rnd_hum:1,2,3 ".
-					   "rnd_bat:1,2,3 ".
-
-                       $readingFnAttributes ;				
+					   "rnd_tmp:0,1,2,3 ".
+					   "rnd_hum:0,1,2,3 ".
+					   "rnd_bat:0,1,2,3 ".
+					   "rnd_pres:0,1,2,3 ".
+                       $readingFnAttributes ;
 }
 #####################################
 
@@ -69,7 +68,7 @@ sub XiaomiSmartHome_Device_Set($@)
 	my ( $hash, $name, $cmd, @args ) = @_;
 
 	return "\"set $name\" needs at least one argument" unless(defined($cmd));
-	
+
 	my $setlist = "";
 	$setlist .= "motionOffTimer:1,5,10 " if ($hash->{MODEL} =~ /motion/);
 	#$setlist = "open:noArg close:noArg " if ($hash->{MODEL} =~ /magnet/);
@@ -80,7 +79,7 @@ sub XiaomiSmartHome_Device_Set($@)
 	$setlist .= "channel_0:on,off channel_1:on,off " if ($hash->{MODEL} eq 'ctrl_neutral2');
 	$setlist .= "channel_0:on,off channel_1:on,off " if ($hash->{MODEL} eq 'ctrl_ln2');
 	$setlist .= "status:open,close,stop,auto level:slider,1,1,100 " if ($hash->{MODEL} eq 'curtain');
-	
+
 	if($cmd eq "power")
 	{
 	   if($args[0] eq "on")
@@ -152,22 +151,22 @@ sub XiaomiSmartHome_Device_Set($@)
 	   {
 			IOWrite($hash,"status","close",$hash) ;
 			return;
-	   }	
+	   }
 	   elsif($args[0] eq "stop")
 	   {
 			IOWrite($hash,"status","stop",$hash) ;
 			return;
-	   }	
+	   }
 	   elsif($args[0] eq "auto")
 	   {
 			IOWrite($hash,"status","auto",$hash) ;
 			return;
-	   }	
+	   }
 	}
 	if($cmd eq "level")
 	{
 		IOWrite($hash,"level", $args[0] ,$hash) ;
-		return;	
+		return;
 	}
 	# if($cmd eq "open")
 	# {
@@ -179,7 +178,7 @@ sub XiaomiSmartHome_Device_Set($@)
 		readingsSingleUpdate($hash, "motionOffTimer", "$args[0]", 1 );;
 		return;
 	}
-		
+
 	return "Unknown argument $cmd, choose one of $setlist";
 
 }
@@ -201,7 +200,8 @@ sub XiaomiSmartHome_Device_Read($$$){
 
 	my $XMIround_tmp = AttrVal( $hash->{NAME}, "rnd_tmp", "2" );
 	my $XMIround_hum = AttrVal( $hash->{NAME}, "rnd_hum", "2" );
-	my $XMIround_bat = AttrVal( $hash->{NAME}, "rnd_bat", "1" );	
+	my $XMIround_bat = AttrVal( $hash->{NAME}, "rnd_bat", "1" );
+	my $XMIround_pres = AttrVal( $hash->{NAME}, "rnd_pres", "2" );
 
 	my $decoded = eval{decode_json($msg)};
 	if ($@) {
@@ -223,7 +223,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 			readingsBulkUpdate($hash, "state", "$data->{status}", 1 );
 			if ($data->{status} eq 'motion' && $hash->{MODEL} =~ /motion/){
 				readingsBulkUpdate($hash, "no_motion", "0", 1 );
-				}		
+				}
 			if ($data->{status} eq 'close' && $hash->{MODEL} =~ /magnet/){
 				readingsBulkUpdate($hash, "no_close", "0", 1 );
 				}
@@ -241,13 +241,13 @@ sub XiaomiSmartHome_Device_Read($$$){
 			my $bat = ($data->{voltage}/1000);
 			Log3 $name, 4, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Voltage: " . $data->{voltage};
 			if ($bat < 2.2) {
-				readingsBulkUpdate($hash, "battery", "low", 1 );
+				readingsBulkUpdate($hash, "batteryState", "low", 1 );
 				}
 				else {
-					readingsBulkUpdate($hash, "battery", "ok", 1 )
+					readingsBulkUpdate($hash, "batteryState", "ok", 1 )
 				}
 			$bat = XiaomiSmartHome_round($bat, $XMIround_bat, $name );
-			readingsBulkUpdate($hash, "battery_level", $bat, 1 );
+			readingsBulkUpdate($hash, "batteryVoltage", $bat, 1 );
 			}
 		if (defined $data->{temperature}){
 			if ($data->{temperature} ne "10000"){
@@ -271,7 +271,8 @@ sub XiaomiSmartHome_Device_Read($$$){
 			if ($data->{pressure} ne "0"){
 				my $pres = $data->{pressure};
 				$pres =~ s/(^[-+]?\d+?(?=(?>(?:\d{3})+)(?!\d))|\G\d{3}(?=\d))/$1./g;
-				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres;
+				$pres = XiaomiSmartHome_round($pres, $XMIround_pres, $name );
+				Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Pressure: " . $pres . " Round: " . $XMIround_pres;
 				readingsBulkUpdate($hash, "pressure", "$pres", 1 );
 				}
 			}
@@ -344,7 +345,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 			readingsBulkUpdate($hash, "rotate", "$data->{rotate}", 1 );
 			readingsBulkUpdate($hash, "state", "rotate", 1 );
 			}
-		#cube end	
+		#cube end
 		#smoke & natgast start
 		if (defined $data->{alarm}){
 			Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Alarm: " . $data->{alarm};
@@ -383,15 +384,17 @@ sub XiaomiSmartHome_Device_Parse($$) {
 	}
 	my $sid = $decoded->{'sid'};
 	my $model = $decoded->{'model'};
-	if (my $hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid})
+	if ($modules{XiaomiSmartHome_Device}{defptr}{$sid}{IODev}->{NAME})
 	{
-		Log3 $name, 4, "$name: DEV_Parse> IS DEFINED " . $model . " : " .$sid;
+		my $hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid}->{IODev};
+		Log3 $name, 5, "$name: DEV_Parse> IS DEFINED " . $model . " : " . $sid . " " . $modules{XiaomiSmartHome_Device}{defptr}{$sid}->{IODev};
+		$hash = $modules{XiaomiSmartHome_Device}{defptr}{$sid};
 		XiaomiSmartHome_Device_Read($hash, $msg, $name);
 	}
 	else
 	{
 
-		Log3 $name, 4, "$name: DEV_Parse> UNDEFINED " . $model . " : " .$sid;
+		Log3 $name, 1, "$name: DEV_Parse> UNDEFINED " . $model . " : " .$sid;
 		return "UNDEFINED XMI_$sid XiaomiSmartHome_Device $sid $model $name";
 	}
 }
@@ -418,10 +421,13 @@ sub XiaomiSmartHome_Device_update($){
   # Update delete old reading voltage & batterystate
   CommandDeleteReading( undef, "$name voltage" ) if(defined(ReadingsVal($name,"voltage",undef)));
   CommandDeleteReading( undef, "$name batterystate" ) if(defined(ReadingsVal($name,"batterystate",undef)));
-    CommandDeleteReading( undef, "$name round" ) if(defined(ReadingsVal($name,"round",undef)));
+  CommandDeleteReading( undef, "$name round" ) if(defined(ReadingsVal($name,"round",undef)));
+  CommandDeleteReading( undef, "$name battery_level" ) if(defined(ReadingsVal($name,"battery_level",undef)));
+  CommandDeleteReading( undef, "$name battery" ) if(defined(ReadingsVal($name,"battery",undef)));
+  CommandDeleteReading( undef, "$name batteryLevel" ) if(defined(ReadingsVal($name,"batteryLevel",undef)));
 }
 #####################################
- 
+
 
 sub XiaomiSmartHome_Device_Define($$) {
 	my ($hash, $def) = @_;
@@ -435,7 +441,7 @@ sub XiaomiSmartHome_Device_Define($$) {
 	$modules{XiaomiSmartHome_Device}{defptr}{$sid} = $hash;
 	AssignIoPort($hash,$iodev);
 	my $room = $attr{$iodev}{room};
-	
+
 	if(defined($hash->{IODev}->{NAME})) {
         my $IOname = $hash->{IODev}->{NAME};
 		Log3 $name, 4, $IOname . ": DEV_Define> " .$name. ": " . $type . " I/O device is " . $hash->{IODev}->{NAME};
@@ -443,15 +449,17 @@ sub XiaomiSmartHome_Device_Define($$) {
            Log3 $name, 1, "$name DEV_Define> $type - no I/O device";
     }
     $iodev = $hash->{IODev}->{NAME};
-       
-    my $d = $modules{XiaomiSmartHome_Device}{defptr}{$name};
-    
-    return "XiaomiSmartHome device $hash->{SID} on XiaomiSmartHome $iodev already defined as $d->{NAME}." if( defined($d) && $d->{IODev} == $hash->{IODev} && $d->{NAME} ne $name );
+
+    my $d = $modules{XiaomiSmartHome_Device}{defptr}{$sid};
+
+    return "XiaomiSmartHome device $hash->{SID} on XiaomiSmartHome $iodev already defined as $d->{SID}." if( defined($d) && $d->{IODev} == $hash->{IODev} && $d->{SID} ne $sid );
 
     Log3 $name, 4, $iodev . ": DEV_Define> " . $name . ": defined as ". $hash->{MODEL};
     $attr{$name}{room} = $room if( !defined( $attr{$name}{room} ) );
     if( $type =~ /motion/) {
+    readingsSingleUpdate($hash, "state", "motion", 1 ) if( !defined( $attr{$name}{devStateIcon} ));
 		$attr{$name}{devStateIcon}  = 'motion:motion_detector@red off:motion_detector@green no_motion:motion_detector@green' if( !defined( $attr{$name}{devStateIcon} ) );
+
 	}
 	elsif ( $type =~ /magnet/) {
 		$attr{$name}{devStateIcon}  = 'open:fts_door_open@red close:fts_door@green' if( !defined( $attr{$name}{devStateIcon} ) );
@@ -461,8 +469,8 @@ sub XiaomiSmartHome_Device_Define($$) {
 	}
     elsif ( $type eq 'weather.v1') {
 		$attr{$name}{stateFormat}  = 'temperature °C, humidity %, pressure kPa' if( !defined( $attr{$name}{stateFormat} ) );
-	}		
-	
+	}
+
 	if( $init_done ) {
 		InternalTimer(gettimeofday() + 2, "XiaomiSmartHome_Device_updateSReading", $hash, 0 );
 		Log3 $name, 4, $iodev . ": DEV_Define> " . $name . " Init Done set InternalTimer for Update";
@@ -483,12 +491,14 @@ sub XiaomiSmartHome_Device_updateSReading($) {
 #####################################
 sub XiaomiSmartHome_Device_Undef($)
 {
-	my ($hash, $arg) = @_; 
+	my ($hash, $arg) = @_;
 	my $name = $hash->{NAME};
 	my $iodev = $hash->{IODev}->{NAME};
+	my $sid = $hash->{SID};
 	RemoveInternalTimer($hash);
-	delete($modules{XiaomiSmartHome_Device}{defptr}{$hash->{SID}});
-    Log3 $name, 4, "$iodev: DEV_Undef> $name - device deleted";
+	Log3 $name, 1, "$iodev: DEV_Undef> ". $hash->{SID} . " > " . $modules{XiaomiSmartHome_Device}{defptr}{$hash->{SID}} . " > " . $sid ." > " . $modules{XiaomiSmartHome_Device}{defptr}{$sid};
+	my $error = delete ($modules{XiaomiSmartHome_Device}{defptr}{$sid});
+    Log3 $name, 1, "$iodev: DEV_Undef> $name - device deleted " . $error;
     return undef;
 
 }
@@ -502,8 +512,9 @@ sub XiaomiSmartHome_round {
   $p ||= 0;
   $n *= 10 ** $p;
   $n = int($n + .5 * $sign);
-  Log3 $name, 5, "$name: DEV_Round>" . " Result_value: " . $n / 10**$p;
-  return $n / 10**$p;
+  my $res =  sprintf( "%." . $p . "f", $n / 10**$p);
+  Log3 $name, 5, "$name: DEV_Round>" . " Result_value: " . $res;
+  return $res;
 }
 
 
@@ -520,7 +531,7 @@ sub XiaomiSmartHome_round {
 <a name="XiaomiSmartHome_Device"></a>
 <h3>XiaomiSmartHome</h3>
 <ul>
-    <i>XiaomiSmartHome</i> implements the XiaomiSmartHome Gateway and Sensors. 
+    <i>XiaomiSmartHome</i> implements the XiaomiSmartHome Gateway and Sensors.
     <a name="XiaomiSmartHome"></a>
 	<br/>
 	<b>Prerequisite</b>
@@ -622,7 +633,7 @@ sub XiaomiSmartHome_round {
 <a name="XiaomiSmartHome_Device"></a>
 <h3>XiaomiSmartHome</h3>
 <ul>
-    <i>XiaomiSmartHome</i> Steuern des XiaomiSmartHome Gateway und deren verbundener Sensoren. 
+    <i>XiaomiSmartHome</i> Steuern des XiaomiSmartHome Gateway und deren verbundener Sensoren.
     <a name="XiaomiSmartHome"></a>
 	<br/>
 	<b>Vorraussetzungen</b>
@@ -642,7 +653,7 @@ sub XiaomiSmartHome_round {
 	<b>Entwicklermodus am Gatway setzen!</b>
     <ul>
 		<p>Ohne Entwicklermodus ist keine Komunikation mit dem Gateway m&oumlglich.
-		<br/>Zum setzen des Entwicklermoduses braucht man ein android oder ios Ger&aumlt mit installierter MI APP. 
+		<br/>Zum setzen des Entwicklermoduses braucht man ein android oder ios Ger&aumlt mit installierter MI APP.
 		<br/>Um das versteckte Men&uuml zu &oumlffnen muss man mehrmals auf die Versionsnummer der MI APP klicken.
 		<br/>Hier finden Sie eine Anleitung mit Bildern.
 		<br/>Android -> https://louiszl.gitbooks.io/lumi-gateway-local-api/content/device_discover.html
