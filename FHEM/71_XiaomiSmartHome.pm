@@ -51,7 +51,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.31";
+my $version = "1.33";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -107,7 +107,8 @@ sub XiaomiSmartHome_Initialize($) {
 						"17:XiaomiSmartHome_Device"     => "^.+smoke",
 						"18:XiaomiSmartHome_Device"     => "^.+weather.v1",
 						"19:XiaomiSmartHome_Device"     => "^.+sensor_motion.aq2",
-						"20:XiaomiSmartHome_Device"     => "^.+sensor_wleak.aq1"};
+						"20:XiaomiSmartHome_Device"     => "^.+sensor_wleak.aq1",
+						"21:XiaomiSmartHome_Device"     => "^.+vibration"};
 	FHEM_colorpickerInit();
 }
 #####################################
@@ -130,7 +131,7 @@ sub XiaomiSmartHome_Read($) {
         InternalTimer(gettimeofday() + 2, "XiaomiSmartHome_connect", $hash, 0);
         return;
     }
-    my $json = $hash->{helper}{JSON}->incr_parse($buf);
+  my $json = $hash->{helper}{JSON}->incr_parse($buf);
 	my $decoded = eval{decode_json($buf)};
 	if ($@) {
 		Log3 $name, 1, "$name: Read> Error while request: $@";
@@ -145,6 +146,7 @@ sub XiaomiSmartHome_Read($) {
     Log3 $name, 5, "$name: Read> [PLAIN] " .  $buf;
 		my $rsid = $decoded->{'sid'};
 		if ($decoded->{'cmd'} eq 'read_ack' || $decoded->{'cmd'} eq 'report' && $decoded->{'model'} ne 'gateway'|| $decoded->{'cmd'} eq 'heartbeat' && $decoded->{'model'} ne 'gateway' || $decoded->{'cmd'} eq 'write_ack' && $decoded->{'model'} ne 'gateway') {
+			# devices does not exist yet
 			if (!$modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME}){
 				Log3 $name, 5, "$name: Read> XiaomiSmartHome_Device unknown trying autocreate" ;
 				my $def=$modules{XiaomiSmartHome}{defptr};
@@ -155,36 +157,49 @@ sub XiaomiSmartHome_Read($) {
 						Log3 $value->{NAME}, 5, "$value->{NAME}: $rsid is sensor from $value->{NAME}";
 						Dispatch($value, $buf, undef);
 						return;
-					}
+						}
 				}
 			}
-			if ($modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} eq $hash->{NAME}) {
+			# devices available with proper gw
+			elsif ($modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} eq $hash->{NAME}) {
 				Log3 $name, 5, "$name: Read> XiaomiSmartHome_Device known! " . "SID: " . $rsid . " " . $modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} . " " . $hash->{NAME};
 				Log3 $name, 5, "$name: Read> Dispatching " . $buf . " " . $hash->{NAME};
-				Dispatch($hash, $buf, undef);
-			}
+				}
+				# Senosoren check
 			elsif ($modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} ne $hash->{NAME}) {
 				Log3 $name, 5, "$name: Read> Wrong Modul HASH Trying to find the right one " . $modules{XiaomiSmartHome_Device}{defptr}{$rsid}{IODev}->{NAME} . " <> " . $hash->{NAME} ;
 				$hash = $modules{XiaomiSmartHome_Device}{defptr}{$rsid}->{IODev};
-				Log3 $name, 5, "$name: Read> Using this GW " . $hash->{NAME} . " no Dispatching!";
+				Log3 $name, 5, "$name: Read> Using this GW " . $hash->{NAME} ;
 				}
-
+			Log3 $name, 5, "$name: Read> Dispatching " . $buf . " " . $hash->{NAME};
+			Dispatch($hash, $buf, undef);
+		}
+		# gateway sensor list
+		elsif ($decoded->{'cmd'} eq 'get_id_list_ack'){
+			$self = $modules{XiaomiSmartHome}{defptr}{$rsid};
+			Log3 $name, 5, "$name: Read> Reading Sensorlist with $self->{NAME}" ;
+			XiaomiSmartHome_Reading ($self, $buf);
+			return;
 			}
+		# gateway not definded
 		elsif (!$modules{XiaomiSmartHome}{defptr}{$rsid}){
-				Log3 $name, 1, "$name: Read> GW not defined " . $buf;
-				return;
+			Log3 $name, 1, "$name: Read> GW not defined " . $buf;
+			return;
 			}
+			# gateway defined but not the right modul instance - change
 		elsif ( $modules{XiaomiSmartHome}{defptr}{$rsid}->{SID} ne $hash->{SID} ){
 			$self = $modules{XiaomiSmartHome}{defptr}{$rsid};
-			Log3 $name, 5, "$name: Read> Change HASH Ref to $self->{NAME}";
-			XiaomiSmartHome_Reading ($self, $buf);
+			Log3 $name, 5, "$name: Read> Wrong Modul HASH skipping $self->{NAME}";
+			#XiaomiSmartHome_Reading ($self, $buf);
+			return;
 			}
-		else
-			{
+			#gateway defined and the right modul instance - nothing to change
+		elsif ( $modules{XiaomiSmartHome}{defptr}{$rsid}->{SID} eq $hash->{SID} ){
 			Log3 $name, 5, "$name: Read> HASH correctly";
 			XiaomiSmartHome_Reading ($hash, $buf);
-			}
-    }
+			return;
+		}
+	 }
 }
 #####################################
 sub XiaomiSmartHome_Reading ($@) {

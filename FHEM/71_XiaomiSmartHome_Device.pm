@@ -27,7 +27,7 @@ use warnings;
 
 
 
-my $version = "1.30";
+my $version = "1.33";
 
 sub XiaomiSmartHome_Device_updateSReading($);
 
@@ -38,7 +38,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
 
-  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|.*cube.*|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_wleak.aq1";
+  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|.*cube.*|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_wleak.aq1|vibration";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -362,10 +362,19 @@ sub XiaomiSmartHome_Device_Read($$$){
 			readingsBulkUpdate($hash, "arlarm", "$data->{curtain_level}", 1 );
 			}
 		#curtain end
+    #vibration Start
+    if (defined $data->{'coordination'}){
+      Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Coordination: " . $data->{coordination};
+      readingsBulkUpdate($hash, "coordination", "$data->{coordination}", 1 );
+      }
+    if (defined $data->{'final_tilt_angle'}){
+      Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Final tilt angle: " . $data->{final_tilt_angle};
+      readingsBulkUpdate($hash, "final_tilt_angle", "$data->{final_tilt_angle}", 1 );
+      }
+    #vibration end
 		if ($decoded->{'cmd'} eq 'heartbeat'){
 		readingsBulkUpdate($hash, 'heartbeat', $decoded->{'sid'} , 1 );
 		}
-
 
 	readingsEndUpdate( $hash, 1 );
 	XiaomiSmartHome_Device_update($hash);
