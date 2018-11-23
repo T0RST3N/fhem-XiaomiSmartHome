@@ -27,7 +27,7 @@ use warnings;
 
 
 
-my $version = "1.33";
+my $version = "1.36";
 
 sub XiaomiSmartHome_Device_updateSReading($);
 
@@ -38,7 +38,7 @@ sub XiaomiSmartHome_Device_Initialize($)
 {
   my ($hash) = @_;
 
-  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|.*cube.*|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_wleak.aq1|vibration";
+  $hash->{Match}     = ".*magnet.*|.*motion.*|sensor_ht|.*switch.*|plug|.*cube.*|86sw1|86sw2|ctrl_neutral1|ctrl_neutral2|rgbw_light|curtain|ctrl_ln1|ctrl_ln2|86plug|natgas|smoke|weather.v1|sensor_wleak.aq1|vibration|remote.b186acn01|remote.b286acn01|remote.b1acn01";
   $hash->{DefFn}     = "XiaomiSmartHome_Device_Define";
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
@@ -739,3 +739,4 @@ sub XiaomiSmartHome_round {
 =end html_DE
 
 =cut
+

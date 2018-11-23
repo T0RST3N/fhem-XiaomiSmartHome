@@ -51,7 +51,7 @@ sub XiaomiSmartHome_Notify($$);
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.33";
+my $version = "1.36";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -76,7 +76,7 @@ my %sets = (
 sub XiaomiSmartHome_Initialize($) {
     my ($hash) = @_;
 
-	$hash->{Clients}    = "XiaomiSmartHome_Device";
+	$hash->{Clients}    = 'XiaomiSmartHome_Device';
     $hash->{DefFn}      = 'XiaomiSmartHome_Define';
     $hash->{UndefFn}    = 'XiaomiSmartHome_Undef';
 	$hash->{NotifyFn}   = 'XiaomiSmartHome_Notify';
@@ -84,8 +84,9 @@ sub XiaomiSmartHome_Initialize($) {
     $hash->{GetFn}      = 'XiaomiSmartHome_Get';
     $hash->{AttrFn}     = 'XiaomiSmartHome_Attr';
     $hash->{ReadFn}     = 'XiaomiSmartHome_Read';
-    $hash->{WriteFn}    = "XiaomiSmartHome_Write";
-	$hash->{AttrList}	= "disable:1,0 " .
+	$hash->{ReadyFn}    = 'XiaomiSmartHome_Ready';
+    $hash->{WriteFn}    = 'XiaomiSmartHome_Write';
+	$hash->{AttrList}	= 'disable:1,0 ' .
 						  $readingFnAttributes;
 
 	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"   => ".*magnet.*",
@@ -108,7 +109,10 @@ sub XiaomiSmartHome_Initialize($) {
 						"18:XiaomiSmartHome_Device"     => "^.+weather.v1",
 						"19:XiaomiSmartHome_Device"     => "^.+sensor_motion.aq2",
 						"20:XiaomiSmartHome_Device"     => "^.+sensor_wleak.aq1",
-						"21:XiaomiSmartHome_Device"     => "^.+vibration"};
+						"21:XiaomiSmartHome_Device"     => "^.+vibration",
+						"22:XiaomiSmartHome_Device"     => "^.*b186acn01",
+						"23:XiaomiSmartHome_Device"     => "^.*b286acn01",
+						"24:XiaomiSmartHome_Device"     => "^.*b1acn01"};
 	FHEM_colorpickerInit();
 }
 #####################################
@@ -560,6 +564,22 @@ sub XiaomiSmartHome_EncryptKey($)
 		Log3 $name, 1, "$name: EncryptKey> Password not SET!";
 		}
 	return undef;
+}
+#####################################
+
+sub XiaomiSmartHome_Ready($)
+{
+	my ($hash) = @_;
+      
+	# Versuch eines Verbindungsaufbaus, sofern die Verbindung beendet ist.
+	return DevIo_OpenDev($hash, 1, undef ) if ( $hash->{STATE} eq "disconnected" );
+
+	# This is relevant for Windows/USB only
+	if(defined($hash->{USBDev})) {
+		my $po = $hash->{USBDev};
+		my ( $BlockingFlags, $InBytes, $OutBytes, $ErrorFlags ) = $po->status;
+		return ( $InBytes > 0 );
+	}
 }
 #####################################
 
@@ -1090,3 +1110,4 @@ sub XiaomiSmartHome_updateAllReadings($)
 
 
 =cut
+
