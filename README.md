@@ -38,3 +38,4 @@ Changing and switching the LED from the gateway and changing ringtone and volume
 * StefanB from Coburg
 * Hendrik S
 * Karsten B
+* Juergen K
