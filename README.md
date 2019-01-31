@@ -39,3 +39,4 @@ Changing and switching the LED from the gateway and changing ringtone and volume
 * Hendrik S
 * Karsten B
 * Juergen K
+* FHEM-Wohnung
