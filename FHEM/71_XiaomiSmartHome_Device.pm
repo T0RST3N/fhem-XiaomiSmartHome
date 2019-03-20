@@ -27,7 +27,7 @@ use warnings;
 
 
 
-my $version = "1.36";
+my $version = "1.40";
 
 sub XiaomiSmartHome_Device_updateSReading($);
 
@@ -43,6 +43,7 @@ sub XiaomiSmartHome_Device_Initialize($)
   $hash->{SetFn}     = "XiaomiSmartHome_Device_Set";
   $hash->{UndefFn}   = "XiaomiSmartHome_Device_Undef";
   $hash->{ParseFn}   = "XiaomiSmartHome_Device_Parse";
+  $hash->{FingerprintFn} = "XiaomiSmartHome_Device_Fingerprint";
 
   $hash->{AttrList}  = "follow-on-for-timer:1,0 follow-on-timer ".
                        "do_not_notify:1,0 ignore:1,0 dummy:1,0 showtime:1,0 valueFn:textField-long ".
@@ -359,7 +360,7 @@ sub XiaomiSmartHome_Device_Read($$$){
 		#curtain start
 		if (defined $data->{curtain_level}){
 			Log3 $name, 3, "$name: DEV_Read>" . " Name: " . $hash->{NAME} . " SID: " . $sid . " Type: " . $hash->{MODEL}  . " Curtain: " . $data->{curtain_level};
-			readingsBulkUpdate($hash, "arlarm", "$data->{curtain_level}", 1 );
+			readingsBulkUpdate($hash, "alarm", "$data->{curtain_level}", 1 );
 			}
 		#curtain end
     #vibration Start
@@ -487,6 +488,14 @@ sub XiaomiSmartHome_Device_Define($$) {
 	return undef;
 }
 #####################################
+sub XiaomiSmartHome_Device_Fingerprint($$){
+	my ($io_name, $msg) = @_;
+	Log3 $io_name, 4, "$io_name: Fingerprint> for $msg";
+	return ($io_name, $msg );
+
+}
+
+#####################################
 sub XiaomiSmartHome_Device_updateSReading($) {
 
     my $hash        = shift;
@@ -587,17 +596,17 @@ sub XiaomiSmartHome_round {
 		<li>smoke: smoke alarm detector</li>
 		<ul>
 			<li>0: disarm</li>
-			<li>1: arlarm</li>
-			<li>8: battery arlarm</li>
-			<li>64: arlarm sensitivity</li>
+			<li>1: alarm</li>
+			<li>8: battery alarm</li>
+			<li>64: alarm sensitivity</li>
 			<li>32768: ICC communication failure</li>
 		</ul>
 		<li>gas: gas alarm detector</li>
 		<ul>
 			<li>0: disarm</li>
-			<li>1: arlarm</li>
-			<li>2: analog arlarm</li>
-			<li>64: arlarm sensitivity</li>
+			<li>1: alarm</li>
+			<li>2: analog alarm</li>
+			<li>64: alarm sensitivity</li>
 			<li>32768: ICC communication failure</li>
 		</ul>
 	</ul>
@@ -645,9 +654,9 @@ sub XiaomiSmartHome_round {
     <i>XiaomiSmartHome</i> Steuern des XiaomiSmartHome Gateway und deren verbundener Sensoren.
     <a name="XiaomiSmartHome"></a>
 	<br/>
-	<b>Vorraussetzungen</b>
+	<b>Voraussetzungen</b>
 	<ul>
-		<li>Diese Pakete m&uumlssen installiert sein: apt-get install libio-socket-multicast-perl libjson-perl libcrypt-cbc-perl</li>
+		<li>Diese Pakete m&uuml;ssen installiert sein: apt-get install libio-socket-multicast-perl libjson-perl libcrypt-cbc-perl</li>
 		<li>Und mit CPAN: cpan Crypt::Cipher::AES</li>
 	</ul>
 	<br/>
@@ -659,11 +668,11 @@ sub XiaomiSmartHome_round {
         <br><br>
     </ul>
 	<br/>
-	<b>Entwicklermodus am Gatway setzen!</b>
+	<b>Entwicklermodus am Gateway setzen!</b>
     <ul>
-		<p>Ohne Entwicklermodus ist keine Komunikation mit dem Gateway m&oumlglich.
-		<br/>Zum setzen des Entwicklermoduses braucht man ein android oder ios Ger&aumlt mit installierter MI APP.
-		<br/>Um das versteckte Men&uuml zu &oumlffnen muss man mehrmals auf die Versionsnummer der MI APP klicken.
+		<p>Ohne Entwicklermodus ist keine Kommunikation mit dem Gateway m&ouml;glich.
+		<br/>Zum setzen des Entwicklermodusses braucht man ein android oder ios Ger&auml;t mit installierter MI APP.
+		<br/>Um das versteckte Men&uuml; zu &ouml;ffnen muss man mehrmals auf die Versionsnummer der MI APP klicken.
 		<br/>Hier finden Sie eine Anleitung mit Bildern.
 		<br/>Android -> https://louiszl.gitbooks.io/lumi-gateway-local-api/content/device_discover.html
 		<br/>IOS  -> https://github.com/fooxy/homeassistant-aqara/wiki/Enable-dev-mode
@@ -672,33 +681,33 @@ sub XiaomiSmartHome_round {
 	<br/>
 	<b>Unterstütze Sensoren</b>
 	<ul>
-		<li>magnet: Magnetischer Fenster/T&uumlr Sensor</li>
+		<li>magnet: Magnetischer Fenster/T&uuml;r Sensor</li>
 		<li>motion: Bewegungsmelder</li>
 		<li>sensor_ht: Temperatur und Luftdruck</li>
 		<li>switch: Funkschalter</li>
 		<li>plug & 86plug: Schaltbare Funksteckdose</li>
-		<li>cube: W&uumlrfel Sensor</li>
+		<li>cube: W&uuml;rfel Sensor</li>
 		<li>86sw1: Einfacher Wandfunkschalter</li>
 		<li>86sw2: Wandfunkschalter doppelt</li>
 		<li>ctrl_neutral1: Einfacher Wandschalter schaltbar</li>
 		<li>ctrl_neutral2: Doppelter Wandschalter schaltbar</li>
 		<li>rgbw_light: RBGW Lampe (nur Anzeige)</li>
-		<li>curtain: Vorhangmotor (ohne das das device den curtain_level gemeldet hat ist ein steuern nicht möglich)</li>
+		<li>curtain: Vorhangmotor (ohne dass das Device den curtain_level gemeldet hat ist ein Steuern nicht &ouml;glich)</li>
 		<li>water: Wasser Sensor</li>
 		<li>smoke: Rauchmelder</li>
 		<ul>
 			<li>0: disarm</li>
-			<li>1: arlarm</li>
-			<li>8: battery arlarm</li>
-			<li>64: arlarm sensitivity</li>
+			<li>1: alarm</li>
+			<li>8: battery alarm</li>
+			<li>64: alarm sensitivity</li>
 			<li>32768: ICC communication failure</li>
 		</ul>
 		<li>gas: Gasmelder</li>
 		<ul>
 			<li>0: disarm</li>
-			<li>1: arlarm</li>
-			<li>2: analog arlarm</li>
-			<li>64: arlarm sensitivity</li>
+			<li>1: alarm</li>
+			<li>2: analog alarm</li>
+			<li>64: alarm sensitivity</li>
 			<li>32768: ICC communication failure</li>
 		</ul>
 	</ul>
@@ -707,29 +716,29 @@ sub XiaomiSmartHome_round {
 	<ul>
 		<li>Das XiaomiSmartHome Gateway sendet alle 10 seconds einen heartbeat</li>
 		<li>Jedes XiaomiSmartHome Devices sendet alle 60 Minuten einen heartbeat</li>
-		<li>Das Reading heartbeat wird mit der SID des jeweiligen Gerätes beim empfang eines Heartbeat aktualisiert</li>
+		<li>Das Reading heartbeat wird mit der SID des jeweiligen Gerätes beim Empfang eines Heartbeat aktualisiert</li>
 	</ul>
 	<br/>
 	<b>Set: Gateway</b>
 	<ul>
-		<li>password: Ohne Passwort ist ein Schalten des GATEWAY nicht m&oumlglich. Das Passwort findet man in der MI APP</li>
+		<li>password: Ohne Passwort ist ein Schalten des GATEWAY nicht m&ouml;glich. Das Passwort findet man in der MI APP</li>
 		<li>RGB(Colorpicker): Einstellen der LED Farbe des Gateways</li>
 		<li>PCT(Slider): Einstellen der Helligkeit des Gateways</li>
-		<li>intervals: Einschalten des gateway für einen Zeitraum zb. set intervals 07:00-08:00</li>
-		<li>ringtone: Wiedergeben eines Arlarmtones 0-8,13,21-29,10001-.. Benutzerdefinierte| 10000 = aus</li>
-		<li>volume: Einstellen der Lautst&aumlrke des Arlarmtones 1-100, (100 ist sehr laut!)</li>
-		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges ver&aumlndern der Lautst&aumlrke set [GWNAME] ringvol 21 10</li>
-		<li>learn: Anlernen neuer Sensoren, nach dem Set an dem neuem Sensor den Button dr&uumlcken</li>
+		<li>intervals: Einschalten des Gateways für einen Zeitraum zb. set intervals 07:00-08:00</li>
+		<li>ringtone: Wiedergeben eines Alarmtones 0-8,13,21-29,10001-.. Benutzerdefinierte| 10000 = aus</li>
+		<li>volume: Einstellen der Lautst&auml;rke des Alarmtones 1-100, (100 ist sehr laut!)</li>
+		<li>ringvol: Wiedergeben eines Arlamtones und gleichzeitiges ver&auml;ndern der Lautst&auml;rke set [GWNAME] ringvol 21 10</li>
+		<li>learn: Anlernen neuer Sensoren, nach dem Set an dem neuen Sensor den Button dr&uuml;cken</li>
 	</ul>
 	<br/>
 	<b>Set: Devices</b>
 	<ul>
 		<li>motionOffTimer:  (nur Bewegungsmelder)
-		<br/>Durch setzen des Parameters ist es m&oumlglich das das Reading des Bewegungsmelder nach 1, 5 oder 10 Sekunden
+		<br/>Durch setzen des Parameters ist es m&ouml;glich, dass das Reading des Bewegungsmelder nach 1, 5 oder 10 Sekunden
 		<br/>automatisch wieder auf off gestellt wird.
-		<br/>Hintergrund: Der Bewegungsmelder sendet kein selber kein off.
-		<br/>Der Bewegungsmelder sendet no_motion nach 120, 180, 300, 600, 1200 Sekunden wenn keine Bewegung festgestellt wurde.</li>
-		<li>Power: (nur Funksteckdose) on off Funktsteckdose ein oder ausschalten</li>
+		<br/>Hintergrund: Der Bewegungsmelder sendet selber kein off.
+		<br/>Der Bewegungsmelder sendet no_motion nach 120, 180, 300, 600, 1200 Sekunden, wenn keine Bewegung festgestellt wurde.</li>
+		<li>Power: (nur Funksteckdose) on off Funksteckdose ein oder ausschalten</li>
 		<li>ctrl: (nur Funkschalter) on off Funkschalter </li>
 		<li>channel_0: (nur Doppelter Wandschalter schaltbar) ein oder ausschalten </li>
 		<li>channel_1: (nur Doppelter Wandschalter schaltbar) ein oder ausschalten </li>
