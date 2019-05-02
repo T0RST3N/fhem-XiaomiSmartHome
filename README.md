@@ -33,6 +33,7 @@ Changing and switching the LED from the gateway and changing ringtone and volume
 * * 2: analog arlarm
 * * 64: arlarm sensitivity
 * * 32768: ICC communication failure
+* vibration: Detect vibration
 
 # A BIG ThankYOU to my Supporters
 * StefanB from Coburg
