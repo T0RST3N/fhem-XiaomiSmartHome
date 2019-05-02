@@ -48,7 +48,7 @@ use SetExtensions;
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.40";
+my $version = "1.41";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -442,7 +442,7 @@ sub XiaomiSmartHome_Write($@)
 	my ($hash,$cmd,$val,$iohash)  = @_;
     my $name = $hash->{NAME};
 	if ( $hash->{helper}{ConnectionState} eq 'Disconnected') {
-		Log3 $name, 1, "$name: Write> Cannot write iam disconnected";
+		Log3 $name, 1, "$name: Write> Cannot write iam Disconnected";
 		return undef;
 		}
 	else{
@@ -575,7 +575,7 @@ sub XiaomiSmartHome_Ready($)
 	my ($hash) = @_;
       
 	# Versuch eines Verbindungsaufbaus, sofern die Verbindung beendet ist.
-	return DevIo_OpenDev($hash, 1, undef ) if ( $hash->{STATE} eq "disconnected" );
+	return DevIo_OpenDev($hash, 1, undef ) if ( $hash->{helper}{ConnectionState} eq "Disconnected" );
 
 	# This is relevant for Windows/USB only
 	if(defined($hash->{USBDev})) {
