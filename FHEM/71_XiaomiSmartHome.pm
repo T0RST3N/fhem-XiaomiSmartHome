@@ -48,7 +48,7 @@ use SetExtensions;
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.41";
+my $version = "1.42";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -132,7 +132,11 @@ sub XiaomiSmartHome_Read($) {
         InternalTimer(gettimeofday() + 2, "XiaomiSmartHome_connect", $hash, 0);
         return;
     }
-  my $json = $hash->{helper}{JSON}->incr_parse($buf);
+	my $json = eval{$hash->{helper}{JSON}->incr_parse($buf)};
+	if ($@) {
+		Log3 $name, 1, "$name: Read> Error malformed JSON > skipping > " . $buf;
+		return;
+		}
 	my $decoded = eval{decode_json($buf)};
 	if ($@) {
 		Log3 $name, 1, "$name: Read> Error while request: $@";
