@@ -48,7 +48,7 @@ use SetExtensions;
 sub XiaomiSmartHome_updateSingleReading($$);
 my $iv="\x17\x99\x6d\x09\x3d\x28\xdd\xb3\xba\x69\x5a\x2e\x6f\x58\x56\x2e";
 
-my $version = "1.41";
+my $version = "1.42";
 
 my %XiaomiSmartHome_gets = (
 	"getDevices"	=> ["get_id_list", '^.+get_id_list_ack' ],
@@ -83,7 +83,7 @@ sub XiaomiSmartHome_Initialize($) {
     $hash->{ReadFn}     = 'XiaomiSmartHome_Read';
 	$hash->{ReadyFn}    = 'XiaomiSmartHome_Ready';
     $hash->{WriteFn}    = 'XiaomiSmartHome_Write';
-	$hash->{AttrList}	= 'disable:1,0 ' .
+	$hash->{AttrList}	= 'disable:1,0 FHEMIP ' .
 						  $readingFnAttributes;
 
 	$hash->{MatchList} = { "1:XiaomiSmartHome_Device"   => ".*magnet.*",
@@ -309,16 +309,31 @@ sub XiaomiSmartHome_Reading ($@) {
 #####################################
 
 
-sub XiaomiSmartHome_getLocalIP(){
-  my $socket = IO::Socket::INET->new( 	Proto       => 'udp',
-										PeerAddr    => '8.8.8.8:53',    # google dns
-									);
-  return '<unknown>' if( !$socket );
-  my $ip = $socket->sockhost;
-  close( $socket );
-  return $ip if( $ip );
+sub XiaomiSmartHome_getLocalIP($){
 
-  return '<unknown>';
+        my ($hash) = @_;
+        my $name = $hash->{NAME};
+        my $attrFHEMIP = AttrVal($name, 'FHEMIP', undef);
+        my $socket;
+
+        if (defined $attrFHEMIP){
+                $socket = IO::Socket::INET->new(
+                        Proto       => 'udp',
+                        LocalAddr   => $attrFHEMIP,
+                        PeerAddr    => '8.8.8.8:53',    # google dns
+                );
+        }else{
+                $socket = IO::Socket::INET->new(
+                        Proto       => 'udp',
+                        PeerAddr    => '8.8.8.8:53',    # google dns
+                );
+        }
+        return '<unknown>' if( !$socket );
+        my $ip = $socket->sockhost;
+        close( $socket );
+        return $ip if( $ip );
+        return '<unknown>';
+
 }
 #####################################
 
@@ -396,7 +411,7 @@ sub XiaomiSmartHome_Define($$) {
 	$hash->{VERSION}  = $version;
     $hash->{GATEWAY} = $param[2];
 	$hash->{helper}{JSON} = JSON->new->utf8();
-	$hash->{FHEMIP} = XiaomiSmartHome_getLocalIP();
+	$hash->{FHEMIP} = XiaomiSmartHome_getLocalIP($hash);
 	$hash->{STATE} = "initialized";
 	$hash->{helper}{host} = $definition;
 	if( $hash->{GATEWAY} !~ m/^\d+\.\d+\.\d+\.\d+$/ ){
